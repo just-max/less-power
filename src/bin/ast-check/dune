@@ -1,0 +1,5 @@
+(executable
+ (name ast_check)
+ (public_name lp-ast-check)
+ (package less-power)
+ (libraries ast_check))
