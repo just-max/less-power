@@ -1,28 +1,7 @@
-(** Ast checker / sanitizer
-
-    tool to enforce restrictions on what syntax elements are allowed in student code.
-    by default restricts use of classes and imperative elements
-
-    - Class declarations
-    - Class type declarations
-    - Class method calls
-    - new class expressions
-    - setting class and record fields
-    - array literals
-    - while loops
-    - for loops
-    - declaring records with mutable entries
-    - external declarations
-
-    external is forbidden as it can be used to circumvent restrictions in the stdlib replacement
-    the sequence operator is not forbidden as there is no point,
-    "a; b" can be trivially replaced by "let _ = a in b"
-*)
-
 open Parsetree
+module R = Result
 
 open Common.Util
-module R = Result
 
 
 module Messages = struct
@@ -35,12 +14,9 @@ module Messages = struct
 end
 
 
-(** A violation that occurred in the AST. *)
 type violation = {
   location : Location.t ;
-  (** Location of the violation. *)
   message : string option ;
-  (** Error message. *)
 }
 
 let report_of_violation { location ; message } =
@@ -125,7 +101,6 @@ let violations_iterator ctx =
 
 exception Violation_limit
 
-(** Return a list of violations for this file. *)
 let ast_violations ?limit ast =
   if limit = Some 0 then R.Ok [] else (* you do you... *)
   let open Ast_iterator in
