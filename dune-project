@@ -15,3 +15,4 @@
 )
 
 (generate_opam_files)
+(implicit_transitive_deps false)

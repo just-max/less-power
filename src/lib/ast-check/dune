@@ -1,3 +1,7 @@
 (library
  (name ast_check)
- (libraries compiler-libs.common))
+ (public_name less-power.ast-check)
+ (flags (:standard -w +A-48-70))
+ (libraries
+  common
+  compiler-libs.common))

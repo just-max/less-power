@@ -21,85 +21,134 @@
 
 open Parsetree
 
-(** has there been a violation in the student code? *)
-let violation = ref false
+open Common.Util
+module R = Result
 
-let defaultMsg =
-  "You may not use the object oriented and imperative subset of OCaml"
 
-(** report a violation in the student code at loc *)
-let error_msg ?(msg = defaultMsg) loc =
-  let v = Location.msg ~loc "%s" msg in
-  let report = Location.{ kind = Report_error; main = v; sub = [] } in
-  Location.print_report Format.err_formatter report
+module Messages = struct
+  let default = "object oriented or imperative feature"
+  let array = "array syntax"
+  let mutable_record = "mutable record field"
+  let class_features = "class-related feature"
+  let loops = "loop"
+  let external_def = "external definition"
+end
 
-(** this ast element is forbidden, if filter returns true for it
-    default: the default iterator for this element, to use when the element is not forbidden
-    filter: filter to use if only some subtype of this element are forbidden
-    getloc: extract the location of an element
-    iter, elem: part of the iterator type, do not pass
- *)
-let forbidden default ?(filter = fun _ -> true) getloc iter elem =
-  if filter elem then (
-    getloc elem |> error_msg;
-    violation := true)
-  else default iter elem
 
-(* checking the ast of a file for forbidden syntax elements *)
+(** A violation that occurred in the AST. *)
+type violation = {
+  location : Location.t ;
+  (** Location of the violation. *)
+  message : string option ;
+  (** Error message. *)
+}
 
-let expr_filter = function
-  | { pexp_desc = Pexp_send _; _ } -> true
-  | { pexp_desc = Pexp_new _; _ } -> true
-  | { pexp_desc = Pexp_setinstvar _; _ } -> true
-  | { pexp_desc = Pexp_setfield _; _ } -> true
-  | { pexp_desc = Pexp_array _; _ } -> true
-  | { pexp_desc = Pexp_while _; _ } -> true
-  | { pexp_desc = Pexp_for _; _ } -> true
-  | _ -> false
+let report_of_violation { location ; message } =
+  let main = Location.msg ~loc:location "%s"
+    (Option.value ~default:Messages.default message)
+  in
+  Location.{ kind = Report_error ; main ; sub = [] }
 
-let decl_filter = function
-  | { ptype_kind = Ptype_record entries; _ } ->
-      List.exists
+let violation ?message location = { location ; message }
+
+type violations = (violation list, exn) Result.t
+
+
+(** Context while iterating over an AST. *)
+type context = {
+  on_violation : violation -> unit
+}
+
+(** Helper for creating iterators that check for forbidden elements.
+    Do not pass [iter] and [elem], they are part of the iterator type
+    @param default The default iterator for this element,
+      to call after checking for violations.
+    @param violations Return a list of violations in this element.
+*)
+let iter_violations ctx default violations iter elem =
+  List.iter ctx.on_violation (violations elem);
+  default iter elem
+
+(* Functions that return a list of violations for a given AST element,
+   for use with [iter_violations] *)
+
+let expr_violations expression =
+  let open Messages in
+  let[@warning "-16"] violation ?message =
+    violation expression.pexp_loc ?message |> singleton
+  in
+  match[@warning "-4"] expression.pexp_desc with
+  | Pexp_array _ -> violation ~message:array
+  | Pexp_while _ | Pexp_for _ -> violation ~message:loops
+  | Pexp_coerce _ | Pexp_send _ | Pexp_new _ ->
+    violation ~message:class_features
+  | Pexp_setinstvar _ -> violation ~message:mutable_record
+  | Pexp_setfield _ -> violation ?message:None
+  | _ -> []
+
+let type_declaration_violations = function[@warning "-4"]
+  | { ptype_kind = Ptype_record entries ; _ } ->
+      List.filter_map
         (function
-          | { pld_mutable = Mutable; pld_loc = loc; _ } ->
-              error_msg loc;
-              false
-          | _ -> false)
+          | { pld_mutable = Asttypes.Mutable ; pld_loc = loc ; _ } ->
+            Some (violation loc ~message:Messages.mutable_record)
+          | _ -> None)
         entries
-  | _ -> false
+  | _ -> []
 
-let struct_filter = function
-  | { pstr_desc = Pstr_primitive _; _ } -> true
-  | _ -> false
+let structure_item_violations = function[@warning "-4"]
+  | { pstr_desc = Pstr_primitive _ ; pstr_loc } ->
+    violation ~message:Messages.external_def pstr_loc |> singleton
+  | _ -> []
 
-let iter =
-  {
+let always_violation ?message get_location x =
+  violation ?message (get_location x) |> singleton
+
+
+let violations_iterator ctx =
+  Ast_iterator.{
     Ast_iterator.default_iterator with
-    class_declaration = forbidden Ast_iterator.default_iterator.class_declaration (function { pci_loc = p; _ } -> p);
-    class_type_declaration = forbidden Ast_iterator.default_iterator.class_type_declaration (function { pci_loc = p; _ } -> p);
-    expr = forbidden Ast_iterator.default_iterator.expr ~filter:expr_filter (function { pexp_loc = p; _ } -> p);
-    type_declaration = forbidden Ast_iterator.default_iterator.type_declaration ~filter:decl_filter (function { ptype_loc = p; _ } -> p);
-    structure_item = forbidden Ast_iterator.default_iterator.structure_item ~filter:struct_filter (function { pstr_loc = p; _ } -> p);
+    class_declaration = iter_violations ctx
+      Ast_iterator.default_iterator.class_declaration
+      (always_violation ~message:Messages.class_features (fun c -> c.pci_loc));
+    class_type_declaration = iter_violations ctx
+      Ast_iterator.default_iterator.class_type_declaration
+      (always_violation ~message:Messages.class_features (fun c -> c.pci_loc));
+    expr = iter_violations ctx
+      Ast_iterator.default_iterator.expr expr_violations;
+    type_declaration = iter_violations ctx
+      Ast_iterator.default_iterator.type_declaration type_declaration_violations;
+    structure_item = iter_violations ctx
+      Ast_iterator.default_iterator.structure_item structure_item_violations;
   }
 
-(** check a single file for violations *)
-let checkFile fn =
-  try
-    (* let _ = print_endline ("Checking: " ^ fn) in *)
-    let ast = Pparse.parse_implementation ~tool_name:"" fn in
-    (* Printast.structure 0 Format.std_formatter ast;
-       Format.fprintf Format.std_formatter "\n"; *)
-    iter.structure iter ast
-  with exn ->
-    violation := true;
-    Location.report_exception Format.err_formatter exn
 
-let studentDir = "assignment"
+exception Violation_limit
 
-(** check all student files for violations *)
-let _ =
-  Sys.readdir studentDir |> Array.to_list
-  |> List.filter (fun name -> Filename.check_suffix name ".ml")
-  |> List.map (Filename.concat studentDir)
-  |> List.iter checkFile;
-  exit (if !violation then 1 else 0)
+(** Return a list of violations for this file. *)
+let ast_violations ?limit ast =
+  if limit = Some 0 then R.Ok [] else (* you do you... *)
+  let open Ast_iterator in
+  let violations = ref [] in
+  let count = ref 0 in
+  let iterator = violations_iterator
+    { on_violation = fun v ->
+        violations := v :: !violations ;
+        limit |> Option.iter (fun l ->
+          incr count ;
+          if !count >= l then raise Violation_limit) ;
+    }
+  in
+  match iterator.structure iterator ast with
+    | () | exception Violation_limit -> R.Ok (List.rev !violations)
+    | exception e -> R.Error e
+
+let file_violations ?limit file_name =
+  Pparse.parse_implementation ~tool_name:"lp-ast-check" file_name
+  |> ast_violations ?limit
+
+
+let format_violations fmt = function
+  | Result.Ok vs ->
+    List.iter (fun v -> Location.print_report fmt (report_of_violation v)) vs
+  | Error exn -> Location.report_exception fmt exn
