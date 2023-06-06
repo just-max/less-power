@@ -3,15 +3,19 @@ module R = Result
 
 open Common.Util
 
+let f = Printf.sprintf
 
 module Messages = struct
-  let default = "object oriented or imperative feature"
-  let array = "array syntax"
-  let mutable_record = "mutable record field"
-  let class_features = "class-related feature"
-  let loops = "loop"
-  let external_def = "external definition"
-  let internal_name = "internal module name"
+  let default = "The use of this feature is not permitted"
+  let array = "This is a use of array syntax, which is not permitted"
+  let mutable_field = "This is a use of a mutable field, which is not permitted"
+  let class_features = "This is a use of classes, which is not permitted"
+  let loop = f "This is a use of a %s-loop, which is not permitted"
+  let external_def = "This is a use of an external definition, which is not permitted"
+  let internal_name =
+    "This identifier contains a name that starts with an Uppercase letter "
+    ^ "and contains Two__Underscores in a row\n"
+    ^ "The use of identifiers of this form is not permitted"
 end
 
 
@@ -59,11 +63,12 @@ let expr_violations expr =
   in
   match[@warning "-4"] expr.pexp_desc with
   | Pexp_array _ -> violation ~message:array
-  | Pexp_while _ | Pexp_for _ -> violation ~message:loops
+  | Pexp_while _ -> violation ~message:(loop "while")
+  | Pexp_for _ -> violation ~message:(loop "for")
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ ->
     violation ~message:class_features
-  | Pexp_setinstvar _ -> violation ~message:mutable_record
-  | Pexp_setfield _ -> violation ?message:None
+  | Pexp_setinstvar _ -> violation ~message:mutable_field
+  | Pexp_setfield _ -> violation ~message:mutable_field
   | _ -> []
 
 let type_declaration_violations = function[@warning "-4"]
@@ -71,7 +76,7 @@ let type_declaration_violations = function[@warning "-4"]
       List.filter_map
         (function
           | { pld_mutable = Asttypes.Mutable ; pld_loc = loc ; _ } ->
-            Some (violation loc ~message:Messages.mutable_record)
+            Some (violation loc ~message:Messages.mutable_field)
           | _ -> None)
         entries
   | _ -> []
