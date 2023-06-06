@@ -7,12 +7,12 @@ let main (args : string list) : int =
     |> List.to_seq
     |> Seq.concat_map Common.Path_util.walk
     |> Seq.filter
-      (fun p -> Filename.check_suffix p ".ml" && not (Sys.is_directory p))
+        (fun p -> Filename.check_suffix p ".ml" && not (Sys.is_directory p))
     |> Seq.map Ast_check.file_violations
     |> Seq.memoize
   in
   (* the formatter for violations only works until a new file is parsed:
-     see the comment for [is_quotable_loc] is location.ml, hence the first
+     see the comment for [is_quotable_loc] in location.ml, hence the first
      traversal of the sequence must do the printing *)
   Seq.iter
     (Format.fprintf Format.std_formatter "%a" Ast_check.format_violations)

@@ -82,7 +82,7 @@ let structure_item_violations = function[@warning "-4"]
   | _ -> []
 
 
-(** The follwing get_idents_X functions, together, cover uses of identifiers
+(** The following get_idents_X functions cover uses of identifiers
     ({!Longident.t}) in the AST. Pass these functions to [ident_violations]. *)
 
 let get_idents_expr expr = match[@warning "-4"] expr.pexp_desc with
@@ -130,7 +130,7 @@ let get_idents_module_expr module_expr =
 (** Reject names that look like they could be module names when they contain the
     substring ["__"]. Only names that start with an ASCII lowercase character
     are not considered modules. This rejects some harmless names like
-    [let übung__1 = ...], but those are depracated anyway. *)
+    [let übung__1 = ...], but those are deprecated anyway. *)
 let is_internal_name s =
   String.length s > 0 && (s.[0] < 'a' || 'z' < s.[0])
   && string_contains ~needle:"__" s

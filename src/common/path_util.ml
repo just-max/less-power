@@ -3,7 +3,7 @@ open Util
 type walk_order = BottomUp | TopDown
 
 let walk ?max_depth ?(walk_order = TopDown)
-  (* ?(follow_symlinks = false) TODO, currently always follos symlinks *) =
+  (* ?(follow_symlinks = false) TODO, currently always follows symlinks *) =
   let open Sys in
   let open Filename in
   let rec impl depth p : string Seq.t = fun () ->
