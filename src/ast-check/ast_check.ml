@@ -145,19 +145,15 @@ let rec ident_contains_internal_name =
 
 (** Check for identifiers containing an internal name,
     and turn them into violations. *)
-let ident_violations get_idents elem =
-  get_idents elem
-  |> List.filter_map (fun Location.{ txt = id ; loc } ->
-    if ident_contains_internal_name id
-      then Some (violation ~message:Messages.internal_name loc)
-      else None)
-(* todo share code *)
-let name_violations get_names elem =
-  get_names elem
+let identifier_violations ?(message = Messages.internal_name)
+    identifier_is_violation get_identifiers elem =
+  get_identifiers elem
   |> List.filter_map (fun Location.{ txt ; loc } ->
-    if is_internal_name txt
-      then Some (violation ~message:Messages.internal_name loc)
-      else None)
+      if identifier_is_violation txt
+        then Some (violation ~message loc) else None)
+
+let ident_violations get = identifier_violations ident_contains_internal_name get
+let name_violations get = identifier_violations is_internal_name get
 
 let always_violation ?message get_location x =
   violation ?message (get_location x) |> singleton
