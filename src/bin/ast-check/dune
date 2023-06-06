@@ -1,7 +1,0 @@
-(executable
- (name ast_check_bin)
- (public_name lp-ast-check)
- (package less-power)
- (flags (:standard -w +A-48-70))
- (libraries
-  common ast_check))
