@@ -3,8 +3,6 @@ module R = Result
 
 open Common.Util
 
-let f = Printf.sprintf
-
 module Messages = struct
   let default = "The use of this feature is not permitted"
   let array = "This is a use of array syntax, which is not permitted"
@@ -47,9 +45,6 @@ type context = {
     @param violations Return a list of violations in this element.
 *)
 let iter_violations ctx violations default iter elem =
-  (* let vs = violations elem in *)
-  (* print_endline @@ Printf.sprintf "%s (length vs)=%d" info (List.length vs); *)
-  (* ctx.on_violation (violation ~message:info Location.none) ; *)
   List.iter ctx.on_violation (violations elem) ;
   default iter elem
 
@@ -181,7 +176,7 @@ let violations_iterator ctx =
     - All plain names ([string]), that could possibly share the name with a
         module (anything that's uppercase, e.g. variant constructors).
         This involves tracing uses of [string] in the AST.
-        On their own, these would be harmless, by any use of them
+        On their own, these would be harmless, but any use of them
         would trigger a violation by virtue of the previous rule. *)
 
   { default_iterator with
