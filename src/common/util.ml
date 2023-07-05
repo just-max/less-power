@@ -1,3 +1,4 @@
+(** Miscellaneous utility functions. *)
 
 (** Function composition, [f % g] is {m f \circ g}. *)
 let (%) f g x = f (g x)

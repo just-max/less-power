@@ -1,3 +1,5 @@
+(** Path and file-related utility functions. *)
+
 open Util
 
 type walk_order = BottomUp | TopDown
