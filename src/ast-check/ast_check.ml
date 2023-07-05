@@ -8,7 +8,7 @@ module Messages = struct
   let array = "This is a use of array syntax, which is not permitted"
   let mutable_field = "This is a use of a mutable field, which is not permitted"
   let class_features = "This is a use of classes, which is not permitted"
-  let loop = f "This is a use of a %s-loop, which is not permitted"
+  let loop = Printf.sprintf "This is a use of a %s-loop, which is not permitted"
   let external_def = "This is a use of an external definition, which is not permitted"
   let internal_name =
     "This identifier contains a name that starts with an Uppercase letter "

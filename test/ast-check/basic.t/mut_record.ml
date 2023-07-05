@@ -1,4 +1,3 @@
-
 type 'a cell = { mutable contents : 'a }
 
 let mutable_count p xs =

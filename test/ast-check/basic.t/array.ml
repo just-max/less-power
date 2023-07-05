@@ -1,4 +1,3 @@
-
 let main () =
   let arrr = [|1; 2; 3|] in
   (* array assignments are silently translated to calls to Array.set,

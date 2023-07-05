@@ -1,4 +1,3 @@
-
 class ['a] queue = object(self)
   val mutable values : 'a list * 'a list = [], []
 
