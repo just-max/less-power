@@ -12,6 +12,9 @@
    "\| Designed for running programming exercises fully automatically
    "\| and at scale.
  )
+ (depends
+  (ocaml (= 5.0.0))
+ )
 )
 
 (generate_opam_files)

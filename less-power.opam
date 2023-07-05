@@ -13,6 +13,7 @@ homepage: "https://github.com/just-max/less-power"
 bug-reports: "https://github.com/just-max/less-power/issues"
 depends: [
   "dune" {>= "3.0"}
+  "ocaml" {= "5.0.0"}
   "odoc" {with-doc}
 ]
 build: [
