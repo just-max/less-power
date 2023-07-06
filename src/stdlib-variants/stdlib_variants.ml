@@ -1,4 +1,4 @@
-(** TODO: module doc *)
+(** Variants of [Stdlib] with restricted or modified functionality. *)
 
 module Stdlib_components = Stdlib_components
 

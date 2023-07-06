@@ -1,4 +1,4 @@
-(** TODO: module doc *)
+(** Variants of the modules included as sub-modules of [Stdlib]. *)
 
 module SafeAliases = struct
   (** [SAFE] Safe modules from the standard library, and
