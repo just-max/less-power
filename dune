@@ -1,2 +1,6 @@
 (env
- (_ (flags (:standard -alert -lp_internal))))
+ (_
+  (flags (:standard
+   -alert -lp_internal
+   -w +A-48-70  ; all warnings except eliminated-optional-arguments and missing-mli
+  ))))

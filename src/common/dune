@@ -1,5 +1,4 @@
 (library
  (name common)
  (public_name less-power.common)
- (flags (:standard -w +A-48-70))
  (libraries ))

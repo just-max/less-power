@@ -2,7 +2,6 @@
  (name ast_check)
  (public_name less-power.ast-check)
 
- (flags (:standard -w +A-48-70))
  (modules (:standard \ ast_check_bin))
  (libraries
   common
@@ -13,7 +12,6 @@
  (public_name lp-ast-check)
  (package less-power)
 
- (flags (:standard -w +A-48-70))
  (modules ("ast_check_bin"))
  (libraries
   common ast_check))
