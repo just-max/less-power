@@ -2,6 +2,7 @@
 (maintainers "Max Lang (max.lang@tum.de)")
 (authors "Benjamin Bott" "Max Lang" "Nico Petzendorfer")
 (source (github just-max/less-power))
+(name less-power)
 
 (package
  (name less-power)
