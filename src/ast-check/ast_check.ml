@@ -1,7 +1,11 @@
-open Parsetree
-module R = Result
+open struct
+  module R = Result
+  module S = Common.Internal.Syntax
+  module C = Common.Error_context
+end
 
-open Common.Util
+open Parsetree
+open Common.Internal.Util
 
 module Messages = struct
   let default = "The use of this feature is not permitted"
@@ -29,9 +33,6 @@ let report_of_violation { location ; message } =
   Location.{ kind = Report_error ; main ; sub = [] }
 
 let violation ?message location = { location ; message }
-
-type violations = (violation list, exn) Result.t
-
 
 (** Context while iterating over an AST. *)
 type context = {
@@ -282,9 +283,12 @@ let violations_iterator ctx =
   }
 
 
+type c = [ `Iter_AST of exn | `Parse_file of string * exn ]
+
+
 exception Violation_limit
 
-let ast_violations ?limit ast =
+let ast_violations ?limit ast : (_, [ `Iter_AST of exn ]) C.One.t =
   if limit = Some 0 then R.Ok [] else (* you do you... *)
   let open Ast_iterator in
   let violations = ref [] in
@@ -298,15 +302,15 @@ let ast_violations ?limit ast =
     }
   in
   match iterator.structure iterator ast with
-    | () | exception Violation_limit -> R.Ok (List.rev !violations)
-    | exception e -> R.Error e
+    | () | exception Violation_limit -> C.One.ok (List.rev !violations)
+    | exception e -> C.One.error (`Iter_AST e)
 
-let file_violations ?limit file_name =
-  Pparse.parse_implementation ~tool_name:"lp-ast-check" file_name
-  |> ast_violations ?limit
+let file_violations ?limit file_name : (_, c) C.One.t =
+  let open S.Result in
+  let* ast =
+    try C.One.ok (Pparse.parse_implementation ~tool_name:"lp-ast-check" file_name)
+    with e -> C.One.error (`Parse_file (file_name, e))
+  in
+  (ast_violations ?limit ast :> (_, c) C.One.t)
 
-
-let format_violations fmt = function
-  | R.Ok vs ->
-    List.iter (fun v -> Location.print_report fmt (report_of_violation v)) vs
-  | R.Error exn -> Location.report_exception fmt exn
+let format_violation fmt v = Location.print_report fmt (report_of_violation v)
