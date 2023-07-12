@@ -47,7 +47,9 @@ val ast_violations :
 val file_violations :
   ?limit:int -> string -> (violation list, c) Common.Error_context.One.t
 
-(** Pretty-print the violations for a file. Should be used before the next
-    file is parsed, otherwise no context from the source file will be output.
+(** Pretty-print a violation. Violations from a given file should be printed
+    before the next file is parsed, otherwise no context from the source file
+    will be output.
+
     Breaks pretty-printing, this is a limitation of {!Location.print_report} *)
 val format_violation : Format.formatter -> violation -> unit

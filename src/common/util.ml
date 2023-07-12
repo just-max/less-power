@@ -30,7 +30,7 @@ open struct module C = Error_context end
 
 type access_file_error = [
   | `Access_file of string * string (** path, [Sys_error] exception text *)
-  | `Unix_error of Unix.error * string * string
+  | `Unix_error of Unix.error * string * string (** Arguments as to {!Unix.Unix_error} *)
 ]
 
 (** Misc. helpers *)

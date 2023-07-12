@@ -4,3 +4,6 @@
    -alert -lp_internal
    -w +A-48-70  ; all warnings except eliminated-optional-arguments and missing-mli
   ))))
+
+(documentation
+ (mld_files index))
