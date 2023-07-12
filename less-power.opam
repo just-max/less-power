@@ -14,6 +14,7 @@ bug-reports: "https://github.com/just-max/less-power/issues"
 depends: [
   "dune" {>= "3.0"}
   "ocaml" {= "5.0.0"}
+  "xmlm" {>= "1.4" & < "1.5"}
   "odoc" {with-doc}
 ]
 build: [

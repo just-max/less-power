@@ -1,0 +1,6 @@
+(library
+ (name test_lib)
+ (public_name less-power.test-lib)
+ (libraries
+  common
+  xmlm str))

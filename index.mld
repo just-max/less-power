@@ -6,4 +6,4 @@ This framework consists of a number of libraries and executables for testing unt
 
 The following components are included in the package:
 
-{!modules: Ast_check Stdlib_variants Common}
+{!modules: Ast_check Stdlib_variants Test_lib Common}
