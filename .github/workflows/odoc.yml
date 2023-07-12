@@ -2,8 +2,9 @@ name: Deploy odoc
 
 on:
   push:
-    branches:
-      - main
+  release:
+    types:
+      - published
 
 jobs:
   deploy-doc:
@@ -11,14 +12,28 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout tree
-        uses: actions/checkout@v3
+      # - name: Checkout tree
+      #   uses: actions/checkout@v3
 
-      - name: Set-up OCaml 5.0
-        uses: ocaml/setup-ocaml@v2
-        with:
-          ocaml-compiler: "5.0"
-          dune-cache: true
+      - name: Dump GitHub context
+        shell: bash
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+          DEST_DIR: ${{ github.head_ref || github.ref_name }}
+        run: |
+          echo "$GITHUB_CONTEXT"
+          echo "$DEST_DIR"
 
-      - name: Deploy odoc to GitHub Pages
-        uses: ocaml/setup-ocaml/deploy-doc@v2
+      # - name: Set-up OCaml 5.0
+      #   uses: ocaml/setup-ocaml@v2
+      #   with:
+      #     ocaml-compiler: "5.0"
+      #     dune-cache: true
+
+      # - name: Deploy odoc to GitHub Pages
+      #   uses: ocaml/setup-ocaml/deploy-doc@v2
+      #   with:
+      #     destination_dir: ${{ github.event_name == "release" && github.ref || (github.head_ref || github.ref_name) }}
+          
+          
+      #     ${{ github.head_ref || github.ref_name }}  # todo: on release, should be release name, on push should be branch name
