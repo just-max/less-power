@@ -45,26 +45,18 @@ type grading =
 exception No_reason
 
 let points ?(reason = fun _ _ -> None) ?penalty title points test_case =
-  match (penalty, points < 0) with
-  | Some false, _ | None, false ->
-      Points
-        {
-          title;
-          points;
-          test_case;
-          reason =
-            (fun t c -> match reason t c with Some s -> s | None -> if eval_criterion t c then "PASS" else "FAIL");
-        }
-  | Some true, _ | None, true ->
-      Points
-        {
-          title;
-          points;
-          test_case;
-          reason =
-            (fun t c ->
-              match reason t c with Some s -> s | None -> if eval_criterion t c then "PENALTY" else raise No_reason);
-        }
+  let reason t c =
+    match (penalty, points < 0) with
+    | Some false, _ | None, false -> (
+          match reason t c with
+          | Some s -> s
+          | None -> if eval_criterion t c then "PASS" else "FAIL")
+    | Some true, _ | None, true -> (
+          match reason t c with
+          | Some s -> s
+          | None -> if eval_criterion t c then "PENALTY" else raise No_reason)
+  in
+  Points { title; points; test_case; reason }
 
 let assertion ?(message = "ASSERTION FAILED") ?(title = "assertion") points test_case =
   Points
@@ -141,11 +133,11 @@ let std_attrs_failure : Xmlm.attribute list =
   [ ("", "type"), "" ]
 
 let empty_node ?(attributes = []) label =
-  (* empty data, otherwise xmlm doesn't (self-)close empty tags! *)
+  (* empty data, otherwise xmlm doesn't (self-)close empty tags! *) (* TODO: is this still an issue? *)
   El ((("", label), attributes), [ Data "" ])
 
-(** reads a whole file from disk as a string *)
-  let prettify_results_basic fn =
+let prettify_results_basic fn =
+  (* reads a whole file from disk as a string *)
   let read_file_whole fn =
     let ch = open_in_bin fn in
     let s = really_input_string ch (in_channel_length ch) in
@@ -159,6 +151,9 @@ let empty_node ?(attributes = []) label =
   output_string oc data;
   close_out oc
 
+(* TODO: The functionality for extracting test results and for evaluating a grading
+   scheme should be extracted to separate functions. The former would be useful
+   to grade test results distributed across multiple files. *)
 let prettify_results ?(grading : grading option) ?(points_step_count = 1) fn =
   let trim_message d =
     let d = Str.global_substitute (Str.regexp "\n+\\(No backtrace.\\)?$") (Fun.const "\n") d in

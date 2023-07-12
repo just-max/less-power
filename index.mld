@@ -1,8 +1,10 @@
-{1 Less Power: Framework for sandboxed testing of OCaml code}
+{0 Less Power}
+
+Framework for sandboxed testing of OCaml code.
 
 This framework consists of a number of libraries and executables for testing untrusted OCaml code. Designed for running programming exercises fully automatically and at scale.
 
-{2 Components}
+{1 Components}
 
 The following components are included in the package:
 
