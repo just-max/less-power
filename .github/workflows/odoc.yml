@@ -24,4 +24,4 @@ jobs:
       - name: Deploy odoc to GitHub Pages
         uses: ocaml/setup-ocaml/deploy-doc@v2
         with:
-          destination_dir: ${{ github.head_ref || github.ref_name }}
+          destination-dir: ${{ github.head_ref || github.ref_name }}
