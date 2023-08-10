@@ -216,11 +216,11 @@ let file_violations ?prohibited ?limit path =
   Ocaml_common.Pparse.parse_implementation ~tool_name:"lp-ast-check" path
   |> ast_violations ?prohibited ?limit
 
-let path_violations ?prohibited ?limit
+let path_violations ?(follow = FileUtil.Follow) ?prohibited ?limit
     ?(check1 = FileUtil.True) ?(check = FileUtil.Has_extension "ml") k path =
   let open FileUtil in
   let cond = if test Is_file path then check1 else And (check, Is_file) in
-  find cond path (fun () -> file_violations ?prohibited ?limit %> k) ()
+  find ~follow cond path (fun () -> file_violations ?prohibited ?limit %> k) ()
 
 
 let pp_violation ppf vio =

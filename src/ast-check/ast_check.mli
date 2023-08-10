@@ -68,14 +68,19 @@ val file_violations :
   ?prohibited:Feature.Set.t -> ?limit:int -> string -> violation list
 
 (** As per {!file_violations}, but scan an entire directory (recursively).
-    If the path designates a regular file, check it if [check1] matches
-    (default: always), if a directory is scanned, check each file if
+    If the path designates a regular file, check the file if [check1] matches
+    (default: always); if a directory is scanned, check each file if
     [check] matches (default: [.ml] ending). Pass each (possibly empty) list of
-    violations to the callback; see the note in {!pp_violation}. *)
+    violations to the callback; see the note in {!pp_violation}.
+
+    The [follow] argument (default: {{!FilePath.Follow}[Follow]}) only applies to directories;
+    symlinks to files are always read. *)
 val path_violations :
+  ?follow:FileUtil.action_link ->
   ?prohibited:Feature.Set.t -> ?limit:int ->
   ?check1:FileUtil.test_file -> ?check:FileUtil.test_file ->
   (violation list -> unit) -> string -> unit
+  (* TODO: the callback could take the path, too... *)
 
 (** Pretty-print a violation. Violations from a given file should be printed
     before the next file is parsed, otherwise no context from the source file

@@ -18,4 +18,4 @@
  (public_name lp-ast-check)
  (package less-power)
  (modules ast_check_bin)
- (libraries ast_check fmt))
+ (libraries common ast_check fmt))

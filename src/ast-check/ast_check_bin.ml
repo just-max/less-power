@@ -18,8 +18,4 @@ let main (_cmd : string) args =
   args |> List.iter (path_violations k);
   !status
 
-let () =
-  Sys.argv
-  |> Array.to_list
-  |> (function cmd :: args -> main cmd args | [] -> failwith "empty argv")
-  |> exit
+let _ = Common.Internal.Util.run_main main

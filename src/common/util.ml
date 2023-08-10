@@ -26,6 +26,12 @@ let string_contains ~needle haystack =
     returns [["c"; "ef"]] *)
 let ( ~$ ) = ( |> )
 
+let run_main main =
+  Sys.argv
+  |> Array.to_list
+  |> (function cmd :: args -> main cmd args | [] -> failwith "empty argv")
+  |> exit
+
 open struct module C = Error_context end
 
 type access_file_error = [
