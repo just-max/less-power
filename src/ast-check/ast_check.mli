@@ -26,30 +26,60 @@
     violations are found, or [2] if an error occurs.
 *)
 
+open Ppxlib
+
+module Feature :
+  sig
+    type t =
+      Array | Mutable_member | Object | Loop
+      | Primitive | Internal_name | Tail_mod_cons | Other
+    module Set : Set.S with type elt = t
+
+    val minimum : Set.t
+    (** {!Primitive} and {!Internal_name}, required to
+        prevent circumventing restrictions. *)
+
+    val default : Set.t
+    (** Everything but {!Tail_mod_cons}. *)
+
+    val all : Set.t
+    (** Everything. *)
+
+    val to_message : t -> string
+    (** Provide a message explaining why a feature is prohibited. *)
+  end
+
 (** A violation that occurred in the AST. *)
 type violation = {
   location : Location.t ;
   (** Location of the violation. *)
   message : string option ;
   (** Error message. *)
+  feature : Feature.t;
+  (** Which prohibited feature was used. *)
 }
-
-(** This module's context for errors. *)
-type c = [ `Iter_AST of exn | `Parse_file of string * exn ]
 
 (** Return a list of (up to [limit]) violations for this AST. *)
 val ast_violations :
-  ?limit:int ->
-  Parsetree.structure ->
-  (violation list, [ `Iter_AST of exn ]) Common.Error_context.One.t
+  ?prohibited:Feature.Set.t -> ?limit:int -> structure -> violation list
 
 (** As per {!ast_violations}, but first parse a file to an AST. *)
 val file_violations :
-  ?limit:int -> string -> (violation list, c) Common.Error_context.One.t
+  ?prohibited:Feature.Set.t -> ?limit:int -> string -> violation list
+
+(** As per {!file_violations}, but scan an entire directory (recursively).
+    If the path designates a regular file, check it if [check1] matches
+    (default: always), if a directory is scanned, check each file if
+    [check] matches (default: [.ml] ending). Pass each (possibly empty) list of
+    violations to the callback; see the note in {!pp_violation}. *)
+val path_violations :
+  ?prohibited:Feature.Set.t -> ?limit:int ->
+  ?check1:FileUtil.test_file -> ?check:FileUtil.test_file ->
+  (violation list -> unit) -> string -> unit
 
 (** Pretty-print a violation. Violations from a given file should be printed
     before the next file is parsed, otherwise no context from the source file
     will be output.
 
     Breaks pretty-printing, this is a limitation of {!Location.print_report} *)
-val format_violation : Format.formatter -> violation -> unit
+val pp_violation : Format.formatter -> violation -> unit

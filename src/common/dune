@@ -1,4 +1,4 @@
 (library
  (name common)
  (public_name less-power.common)
- (libraries unix))
+ (libraries unix fmt))

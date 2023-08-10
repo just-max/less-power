@@ -1,18 +1,21 @@
 (library
  (name ast_check)
  (public_name less-power.ast-check)
-
- (modules (:standard \ ast_check_bin))
+ (modules
+  (:standard \ ast_check_bin))
  (libraries
   common
-  compiler-libs.common))
+  fmt
+  fileutils
+  compiler-libs.common
+  ocaml-compiler-libs.common
+  ppxlib
+  ppxlib.astlib
+  ppxlib.traverse_builtins))
 
 (executable
  (name ast_check_bin)
  (public_name lp-ast-check)
  (package less-power)
-
- (modules ("ast_check_bin"))
- (libraries
-  common ast_check
-  compiler-libs.common unix))
+ (modules ast_check_bin)
+ (libraries ast_check fmt))

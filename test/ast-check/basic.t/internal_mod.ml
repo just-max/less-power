@@ -32,3 +32,5 @@ module _ = struct
 
   let y = Stdlib__Array.append
 end
+
+module _ = Dont__Error.Multiple__Times.Per__Identifier

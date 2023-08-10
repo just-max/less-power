@@ -47,3 +47,10 @@ let walk ?max_depth ?(walk_order = TopDown) ?(follow_symlinks = false)
   in
 
   impl 0
+
+(* TODO: make this fail or do something sensible if the second path is absolute...
+   the standard library just concatenates *)
+let ( / ) = Filename.concat
+
+(** like {!Sys.readdir}, but the returned entries are full paths *)
+let readdir_p p = Sys.readdir p |> Array.to_seq |> Seq.map (fun p1 -> p / p1)
