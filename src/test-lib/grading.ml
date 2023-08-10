@@ -93,7 +93,8 @@ let map_tree f tree =
   let rec map tree = match f tree with Data d -> Data d | El (tag, childs) -> El (tag, List.map map childs) in
   map tree
 
-let map_tree_data f tree =
+(* currently unused *)
+let[@warning "-32"] map_tree_data f tree =
   let rec map tree = match tree with Data d -> Data (f d) | El (tag, childs) -> El (tag, List.map map childs) in
   map tree
 
