@@ -1,5 +1,7 @@
 (** [let*] and [let+] syntax *)
 
+(* currently unused, TODO: remove *)
+
 module type Monad1 = sig
   type 'a t
 
@@ -49,7 +51,3 @@ module Seq =
   MkSyntaxMonad1 (struct  include Seq  let bind x f = Seq.flat_map f x  end)
 module List =
   MkSyntaxMonad1 (struct  include List let bind x f = concat_map f x  let return x = [x]  end)
-
-module Error_context = struct
-  module Many = MkSyntaxMonad2 (Error_context.Many)
-end

@@ -1,11 +1,13 @@
 (** Functionality common to multiple components. *)
 
-module Error_context = Error_context
+[@@@alert lp_internal "This module is internal and has an unstable interface!"]
 
-module Internal = struct
-  [@@@alert lp_internal "This module is internal and has an unstable interface!"]
+module Util = Util
+module Pp_util = Pp_util
+module Path_util = Path_util
+module Ctx_util = Ctx_util
+module P_run = P_run
 
-  module Util = Util
-  module Path_util = Path_util
-  module Syntax = Syntax
-end
+(* module Syntax = Syntax *)
+
+(* {!modules: Util Pp_util Path_util Ctx_util P_run} *)

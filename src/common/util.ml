@@ -1,4 +1,4 @@
-(** Miscellaneous utility functions. *)
+(** Various utility functions. *)
 
 (** Function composition, [f % g] is {m f \circ g}. *)
 let (%) f g x = f (g x)
@@ -11,6 +11,8 @@ let peek f x = f x; x
 
 (** One-element list. *)
 let singleton x = [x]
+
+let or_option o1 o2 = o1 |> Option.(fold ~some ~none:o2)
 
 (** [string_contains ~needle haystack]:
     does [needle] exist as a substring of [haystack]?
@@ -26,49 +28,63 @@ let string_contains ~needle haystack =
     returns [["c"; "ef"]] *)
 let ( ~$ ) = ( |> )
 
+let try_to_result f x = try Ok (f x) with e -> Error e
+let unresult_exn = function Ok x -> x | Error e -> raise e
+
 let run_main main =
   Sys.argv
   |> Array.to_list
   |> (function cmd :: args -> main cmd args | [] -> failwith "empty argv")
   |> exit
 
-open struct module C = Error_context end
+(** {1 Timeouts} *)
 
-type access_file_error = [
-  | `Access_file of string * string (** path, [Sys_error] exception text *)
-  | `Unix_error of Unix.error * string * string (** Arguments as to {!Unix.Unix_error} *)
-]
+let min_span s1 s2 = if Mtime.Span.compare s1 s2 < 0 then s1 else s2
 
-(** Misc. helpers *)
+exception Timeout
+let _ = Printexc.register_printer (function Timeout -> Some "Timeout" | _ -> None)
 
-let ctx_file_access f (p : string) : (_, access_file_error) C.One.t =
-  try C.One.ok (f p) with
-  | Sys_error e -> C.One.error (`Access_file (p, e))
-  | Unix.Unix_error (e, f, a) -> C.One.error (`Unix_error (e, f, a))
+(** Can overflow for large [t] *)
+let span_to_float_s t = Mtime.Span.(to_float_ns t /. to_float_ns s)
 
-let is_directory = ctx_file_access Sys.is_directory
+(** [timeout_unix t f] is [Some (f ())] if the call to [f]
+    terminates within [t], otherwise [None].
+    The timeout is triggered by a Unix signal.
 
-let readdir : _ -> _ C.One.t = ctx_file_access Sys.readdir %> Result.map Array.to_seq
-
-let lstat = ctx_file_access Unix.lstat
-
-let pp_of pp f : _ Fmt.t = fun ppf x -> pp ppf @@ f x
-
-let pp_repeat ?(sep = Fmt.nop) n0 (pp : 'a Fmt.t) : 'a Fmt.t = fun ppf x ->
-  let rec loop n =
-    if n = 0 then ()
-    else if n = 1 then pp ppf x
-    else (pp ppf x; sep ppf (); loop (n - 1))
+    Notes:
+    - [-] Does not interrupt [f] until an allocation occurs, which may be never.
+    - [-] Any existing Unix timer is suspended for the duration of the call to [f].
+    - [+] If [f] is interrupted, it will not be left running in the background. *)
+let timeout_unix ?(timer = Unix.ITIMER_REAL) t f x =
+  let open Unix in
+  let signum = match timer with
+    | ITIMER_REAL -> Sys.sigalrm
+    | ITIMER_VIRTUAL -> Sys.sigvtalrm
+    | ITIMER_PROF -> Sys.sigprof
   in
-  loop n0
+  let stop_timer () = Unix.setitimer timer { it_value = 0.; it_interval = 0. } in
 
-let pp_text ?(line = Fmt.string) : string Fmt.t =
-  let open Fmt in
-  vbox @@ pp_of (list line) (String.split_on_char '\n')
+  let t_float = span_to_float_s t in
 
-let pp_flow ?(word = Fmt.string) : string Fmt.t =
-  let open Fmt in
-  pp_text ~line:(box @@ pp_of (list ~sep:sp word) (String.split_on_char ' '))
+  let prev_timer = stop_timer () in
+  let prev_handler = Sys.signal signum (Sys.Signal_handle (fun _ -> raise_notrace Timeout)) in
 
-let pp_text_ = pp_text ?line:None
-let pp_flow_ = pp_flow ?word:None
+  let r =
+    try
+      Unix.setitimer timer { it_value = t_float; it_interval = 0. } |> ignore ;
+      let r0 = try Ok (Some (f x)) with e when e <> Timeout -> Error e in
+      stop_timer () |> ignore;
+      r0
+    with Timeout -> Ok None
+  in
+
+  Sys.set_signal signum prev_handler ;
+  Unix.setitimer timer prev_timer |> ignore ;
+
+  unresult_exn r
+
+let timed f x =
+  let c = Mtime_clock.counter () in
+  let r = f x in
+  let t = Mtime_clock.count c in
+  r, t

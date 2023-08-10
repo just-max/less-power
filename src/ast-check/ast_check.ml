@@ -1,14 +1,4 @@
-(* open struct
-  module R = Result
-  module S = Common.Internal.Syntax
-  module C = Common.Error_context
-end *)
-
-(* open Parsetree *)
-
-(* module _ = Astlib.Parse *)
-
-open Common.Internal.Util
+open Common.Util
 open Ppxlib
 
 module Messages = struct
@@ -226,6 +216,7 @@ let path_violations ?(follow = FileUtil.Follow) ?prohibited ?limit
 let pp_violation ppf vio =
   let open Ocaml_common.Location in
   let report =
+    let open Common.Pp_util in
     errorf ~loc:vio.location "@[<v>%a%a@]"
       (pp_of pp_flow Feature.to_message) vio.feature
       Fmt.(option (cut ++ pp_flow)) vio.message

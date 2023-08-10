@@ -18,4 +18,4 @@ let main (_cmd : string) args =
   args |> List.iter (path_violations k);
   !status
 
-let _ = Common.Internal.Util.run_main main
+let _ = Common.Util.run_main main
