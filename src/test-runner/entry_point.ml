@@ -3,17 +3,6 @@
 open Cmdliner
 open Std_task
 
-(* TODO: remove *)
-type 'a runner =
-  build_root:FilePath.filename ->
-  safe:bool ->
-  build_timeout:Mtime.span ->
-  test_timeout:Mtime.span ->
-  probe_timeout:Mtime.span ->
-  exercise_start:float ->
-  exercise_end:float ->
-  'a
-
 let build_root =
   let doc = "Build and run tests relative to this directory." in
   Arg.(
@@ -90,11 +79,11 @@ let runner_with_cfg of_cfg build_root safe build_timeout probe_timeout
   |> of_cfg
 
 let task_runner task_of_cfg cfg =
-  let open Task.Task_tree in
-  let task : (unit, unit) t = task_of_cfg cfg in
+  let open Task in
+  let task : (unit, unit) tree = task_of_cfg cfg in
   let result, summary = run task () in
   Format.printf "@[<v>Task summary:@,%a@,%a@]@."
-    (pp_summary ~failure:(Result.is_error result.x) ()) summary
+    (pp_summary ~failure:(Result.is_error result) ()) summary
     (pp_state_out Fmt.(const string "Build successful.")) result
 
 let command_of_term term =

@@ -1,11 +1,21 @@
-(** Tasks for the standard test setup. *)
+(** Common tasks and tasks for the standard test setup. *)
 
 open Task
-open Task.Task_tree
 open Common
 open Ctx_util
 
 let f = Printf.sprintf
+
+(** {1 Common tasks} *)
+
+(** Check if the directory contains a symlink. The directory itself may be a symlink. *)
+let contains_symlink p =
+  let exception Symlink_found in
+  Path_util.readdir_p p
+  |> Seq.exists FileUtil.(
+      fun p1 ->
+        try find ~follow:Skip Is_link p1 (fun _ _ -> raise Symlink_found) false
+        with Symlink_found -> true)
 
 module Messages = struct
   let submission_error =
@@ -172,3 +182,86 @@ let timeout_for cfg = function
   | `Build -> cfg.build_timeout
   | `Test -> cfg.test_timeout
   | `Probe -> cfg.probe_timeout
+
+
+(** {1 Standard tasks} *)
+
+(** Set up the test environment. *)
+let std_setup cfg = group ~label:"setup" @@ of_list [
+    group ~label:"load_submission" @@ of_list [
+      (* check student code for symlinks *)
+      check_contains_symlink cfg "assignment" ;
+      (* load code from the student repository *)
+      load_files cfg "assignment/src" "tests/assignment" ;
+    ];
+
+    (* load the sample solution *)
+    group ~label:"load_solution" @@ of_list [
+      load_files cfg "solution/src" "tests/solution" ;
+      write_file_str cfg "include Assignment\n" "tests/solution/solution.ml" ;
+    ];
+
+    (* configure the tests *)
+    configure_show_hidden cfg "tests/test/config.ml" ;
+
+    (* make sure the directory exists and clear out old test reports *)
+    make_test_report_directory cfg "test-reports/";
+  ]
+
+(** Run the limitation checker. *)
+let std_check cfg = checker cfg "tests/assignment"
+
+(* Build the assignment library and test binary. *)
+let std_build cfg = group ~label:"build" @@ of_list [
+  (* First, build only the student submission without referencing the tests
+      or the solution, so that we can show the build output to the student
+      and not leak test or solution code. *)
+  dune cfg
+    ~options:(
+      subprocess_options ()
+        ~timeout:(P_run.timeout (timeout_for cfg `Build))
+        ~error_message:Messages.submission_error)
+    ~root:"tests/" "build" ~args:["--force"; "assignment"]
+  |> ignore |> with_ ~label:"assignment";
+
+  (* If there are build failures, the compiler sometimes prints source code
+      of the tests or the solution to stderr, which is shown to the student.
+      Therefore, drop output. If the student submission builds and matches the
+      interface, this should never fail (and any failures are almost certainly
+      our fault). *)
+  dune cfg
+    ~options:(
+      subprocess_options ()
+        ~timeout:(P_run.timeout (timeout_for cfg `Build))
+        ~hide_stdout:true ~hide_stderr:true
+        ~error_message:Messages.test_failure)
+    ~root:"tests/" "build" ~args:["--force"; "test"]
+  |> ignore |> with_ ~label:"test";
+  ]
+
+(** Run the generated binary. *)
+let std_test cfg = group ~label:"test" @@ of_list [
+  (* The test executable is configured to exit immediately if no arguments are passed.
+      We use this to check that the top level code of the submission does not
+      contain any long-running code. If it does, there's no point in running the tests,
+      since the significantly longer test timeout will just kill them.
+      We don't want to prohibit top-level code entirely, since it would prevent
+      things like [let impl0 = impl 0] *)
+  dune cfg
+    ~options:(
+      subprocess_options ()
+        ~timeout:(P_run.timeout (timeout_for cfg `Probe)))
+    ~root:"tests/" "exec" ~args:["--no-build"; "--"; "test/test.exe"]
+  |> ignore |> with_ ~label:"probe";
+
+  (* run the test! *)
+  dune cfg
+    ~options:(
+      subprocess_options ()
+        ~timeout:(P_run.timeout (timeout_for cfg `Test)))
+    ~root:"tests/" "exec"
+    ~args:[
+      "--no-build"; "--"; "test/test.exe";
+      "-output-junit-file"; "test-reports/results.xml"]
+  |> ignore |> with_ ~label:"run";
+]
