@@ -3,4 +3,12 @@
  (public_name less-power.test-lib)
  (libraries
   common
-  xmlm str))
+
+  str
+
+  ounit2
+  ounit2.advanced
+  qcheck-core
+  mtime
+  mtime.clock.os
+  xmlm))
