@@ -1,14 +1,13 @@
 (library
  (name test_runner)
  (public_name less-power.test-runner)
- (modules (:standard \ test_runner_bin))
  (libraries
-  common ast_check
-  fileutils unix mtime mtime.clock.os threads fmt))
+  common
+  ast_check
 
-; temporary: TODO, remove this
-(executable
- (name test_runner_bin)
- (public_name lp-test-runner)
- (modules test_runner_bin)
- (libraries common test_runner fmt fileutils))
+  unix
+
+  cmdliner
+  fileutils
+  fmt
+  mtime))

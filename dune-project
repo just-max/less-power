@@ -22,6 +22,7 @@
   (fmt (and (>= 0.9) (< 0.10)))
   (ppxlib (and (>= 0.30) (< 0.31)))
   (ocaml-compiler-libs (and (>= v0.12) (< v0.13)))
+  (cmdliner (and (>= 1.2) (< 1.3)))
  )
 )
 
