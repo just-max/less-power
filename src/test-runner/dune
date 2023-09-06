@@ -1,0 +1,13 @@
+(library
+ (name test_runner)
+ (public_name less-power.test-runner)
+ (libraries
+  common
+  ast_check
+
+  unix
+
+  cmdliner
+  fileutils
+  fmt
+  mtime))

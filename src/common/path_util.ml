@@ -14,3 +14,7 @@ let is_code ?(condition = FileUtil.True) p =
   if test Is_link p
   then test condition p && test Is_file (Unix.readlink p)
   else test (And (Is_file, condition)) p
+
+let mkdir ?(mode = 0o777) ?(exist_ok = false) p =
+  let open Unix in
+  try mkdir p mode with Unix_error (EEXIST, _, _) when exist_ok -> ()

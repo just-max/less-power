@@ -37,11 +37,18 @@ type phase = Completed | TimedOut | Killed
 
 type result = {
     phase : phase (** What phase was the process in when it completed? *);
-    status : Unix.process_status;
+    status : Unix.process_status (** What status did the process exit with? *);
     stdout : string;
     stderr : string;
     elapsed : Mtime.span;
   }
+
+(** Did the subprocess exit normally? If [check_status] is [false], ignore
+    the exit code and check only for a timeout. *)
+let result_is_ok ?(check_status = true) = function[@warning "-4"]
+  | { phase = Completed; _ } when not check_status -> true
+  | { phase = Completed; status = Unix.WEXITED 0; _ } -> true
+  | _ -> false
 
 let pp_result ?(hide_stdout = false) ?(hide_stderr = false) ?command_line ppf r =
   let open Fmt in
@@ -66,7 +73,7 @@ let pp_result ?(hide_stdout = false) ?(hide_stderr = false) ?command_line ppf r 
   pf ppf "@[<v>@[%a@ %a@ after %a@]%a%a@]"
     (option
       ~none:(const string "A command")
-      (fun ppf -> pf ppf "@[<2>The command @[<2>%a@]@]" (list ~sep:sp @@ pp_of string (* Filename.quote *) Fun.id)))
+      (fun ppf -> pf ppf "@[<2>The command `@[<2>%a@]`@]" (list ~sep:sp @@ pp_of string (* Filename.quote *) Fun.id)))
     command_line
     pp_status (r.phase, r.status)
     Mtime.Span.pp r.elapsed

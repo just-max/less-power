@@ -21,6 +21,7 @@ depends: [
   "fmt" {>= "0.9" & < "0.10"}
   "ppxlib" {>= "0.30" & < "0.31"}
   "ocaml-compiler-libs" {>= "v0.12" & < "v0.13"}
+  "cmdliner" {>= "1.2" & < "1.3"}
   "odoc" {with-doc}
 ]
 build: [

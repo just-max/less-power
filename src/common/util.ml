@@ -12,7 +12,17 @@ let peek f x = f x; x
 (** One-element list. *)
 let singleton x = [x]
 
+let null = function [] -> true | _ -> false
+
+let uncons = function [] -> None | x :: xs -> Some (x, xs)
+
+let unsnoc xs = uncons (List.rev xs) |> Option.map (fun (x, xs) -> List.rev xs, x)
+
 let or_option o1 o2 = o1 |> Option.(fold ~some ~none:o2)
+
+let filter_option f = function Some x as o when f x -> o | _ -> None
+
+let if_option b x = if b then Some x else None
 
 (** [string_contains ~needle haystack]:
     does [needle] exist as a substring of [haystack]?

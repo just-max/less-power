@@ -18,7 +18,7 @@ let with_context (cm : _ t) f =
   in
   match cm k with
   | Ok x -> x
-  | Error e -> raise e
+  | Error e -> raise e (* TODO: better backtraces? *)
 
 (** Let-syntax for {!with_context} *)
 let ( let< ) = with_context
@@ -52,3 +52,29 @@ let sigprocmask mode sigs : _ t = fun k ->
   let result = k () in
   Unix.sigprocmask Unix.SIG_SETMASK prev_mask |> (ignore : int list -> _);
   result
+
+let timeout_unix ?timer t : _ t = fun k ->
+  match Util.timeout_unix ?timer t k () with
+  | None -> Ok None
+  | Some r -> Result.map Option.some r
+
+let timed : _ t = fun k ->
+  match Util.timed k () with
+  | Error _ as e, _ -> e
+  | Ok r, t -> Ok (r, t)
+
+let capture_exceptions ?(filter = Fun.const true) () : _ t = fun k ->
+  match k () with
+  | Ok x -> Ok (Ok x)
+  | Error e when filter e -> Ok (Error e)
+  | Error e -> Error e
+
+let empty_context x f : _ t = fun k -> Result.map f (k x)
+let empty_context' x : _ t = empty_context x Fun.id
+
+let optional_context ~some x_empty f_empty = function
+  | None -> empty_context x_empty f_empty
+  | Some x -> some x
+
+let optional_timeout_unix ?timeout =
+  optional_context ~some:timeout_unix () Option.some timeout
