@@ -11,7 +11,7 @@ module Messages = struct
     "This identifier contains a name that starts with an Uppercase letter \
      and contains Two__Underscores in a row\n\
      The use of identifiers of this form is not permitted"
-  let _tail_mod_cons =
+  let tail_mod_cons =
     "This is a use of the 'Tail Modulo Constructor' \
      program transformation, which is not permitted"
   let other = "The use of this feature is not permitted"
@@ -21,6 +21,8 @@ module Feature = struct
   type t =
     Array | Mutable_member | Object | Loop
     | Primitive | Internal_name | Tail_mod_cons | Other
+
+  (* TODO: add TMC to AST-checker tests (needs executable to support flags) *)
 
   module Set = Set.Make (struct type nonrec t = t let compare = compare end)
 
@@ -41,7 +43,7 @@ module Feature = struct
     | Loop -> loop
     | Primitive -> primitive
     | Internal_name -> internal_name
-    | Tail_mod_cons -> failwith "TODO "
+    | Tail_mod_cons -> tail_mod_cons
     | Other -> other
 end
 
@@ -75,12 +77,10 @@ module Patterns = struct
     as__ %> map1 ~f:(fun x -> violation1 (loc x) feature)
   let no_violation () = drop |> map0 ~f:([] : violation list)
 
-  [@@@warning "-32"]
-
   let drop1 pat = pat drop
   let drop2 pat = pat drop drop
   let drop3 pat = pat drop drop drop
-  let drop4 pat = pat drop drop drop drop
+  (* let drop4 pat = pat drop drop drop drop *)
   let drop5 pat = pat drop drop drop drop drop
 
   let exp_violation () =
@@ -127,7 +127,6 @@ let iter_violations context =
     let loc' = Option.fold loc ~some:~$x ~none:ctx_loc in
     f loc' x; sup loc' x
   in
-  (* let update_loc sup loc _ x = sup (loc x) x in *)
   let violation_when p feature location x =
     if p x then
       violation1 location feature
@@ -137,18 +136,16 @@ let iter_violations context =
     Ast_pattern.parse (pat ()) location x Fun.id
     |> iter_violations context
   in
-  object (* (this) *)
-    (* inherit Ast.map_with_context *)
+  object
     inherit [Location.t] Ast_traverse.map_with_context as super
 
     (** Context: replace the current location with the given location. *)
     method! loc k _ located = super#loc k located.loc located
-      (* update_loc (super#loc k) (fun l -> l.loc) *)
 
     (* For values that don't have their own location, update the location
        context as close to the values as possible (best-effort basis). *)
 
-    (* mutable_flag *)
+    (* mutable_flag may occur in these three places *)
     method! class_type_field _ ctf = super#class_type_field ctf.pctf_loc ctf
     method! class_field _ cf = super#class_field cf.pcf_loc cf
     method! label_declaration _ ld = super#label_declaration ld.pld_loc ld
@@ -172,14 +169,17 @@ let iter_violations context =
           (function Mutable -> true | Immutable -> false)
           Mutable_member
 
-(*     method! location = iter super#location @@ fun ctx_loc loc ->
-      [violation ctx_loc ~message:"ctx" Other;
-       violation loc ~message:"loc" Other]
-      |> iter_violations context *)
-
     method! structure_item =
       iter ~loc:str_loc super#structure_item
       @@ violation_pat Patterns.str_violations
+
+    method! attribute =
+      iter ~loc:(fun attr -> attr.attr_loc) super#attribute
+      @@ violation_when
+          (fun attr ->
+            List.mem attr.attr_name.txt
+              ["tail_mod_cons"; "ocaml.tail_mod_cons"])
+          Tail_mod_cons
 
   end
 
