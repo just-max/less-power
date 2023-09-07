@@ -17,7 +17,8 @@
   (ocaml (= 5.0.0))
   (xmlm (and (>= 1.4) (< 1.5)))
   (fileutils (and (>= 0.6) (< 0.7)))
-  (qcheck-core (and (>= 0.21) (< 0.22)))  ; todo: other qcheck components, maybe separate into packages?
+  (qcheck-core (and (>= 0.21) (< 0.22)))
+  (ounit2 (and (>= 2.2) (< 2.3)))
   (mtime (and (>= 2.0) (< 2.1)))
   (fmt (and (>= 0.9) (< 0.10)))
   (ppxlib (and (>= 0.30) (< 0.31)))
