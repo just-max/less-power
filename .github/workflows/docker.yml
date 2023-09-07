@@ -28,6 +28,4 @@ jobs:
         with:
           context: .
           push: true
-          tags:
-            - ${{ github.sha }}
-            - ${{ github.head_ref || github.ref_name }}
+          tags: ${{ github.sha }},${{ github.head_ref || github.ref_name }}
