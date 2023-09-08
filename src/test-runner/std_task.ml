@@ -185,6 +185,8 @@ let timeout_for cfg = function
 
 (** {1 Standard tasks} *)
 
+let std_test_report_dir = "test-reports/"
+
 (** Set up the test environment. *)
 let std_setup cfg = group ~label:"setup" @@ of_list [
     group ~label:"load_submission" @@ of_list [
@@ -204,7 +206,7 @@ let std_setup cfg = group ~label:"setup" @@ of_list [
     configure_show_hidden cfg "tests/test/config.ml" ;
 
     (* make sure the directory exists and clear out old test reports *)
-    make_test_report_directory cfg "test-reports/";
+    make_test_report_directory cfg std_test_report_dir;
   ]
 
 (** Run the limitation checker. *)

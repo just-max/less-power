@@ -15,6 +15,17 @@ let is_code ?(condition = FileUtil.True) p =
   then test condition p && test Is_file (Unix.readlink p)
   else test (And (Is_file, condition)) p
 
-let mkdir ?(mode = 0o777) ?(exist_ok = false) p =
-  let open Unix in
-  try mkdir p mode with Unix_error (EEXIST, _, _) when exist_ok -> ()
+let[@tail_mod_cons] rec parents path =
+  match FilePath.dirname path with
+  | "" -> []
+  | parent -> parent :: parents parent
+
+let default_mode = 0o777
+
+let mkdir ?(mode = default_mode) ?parents:(pt = false) ?(exist_ok = false) p =
+  let mkdir1 mode path =
+    let open Unix in
+    try mkdir path mode with Unix_error (EEXIST, _, _) when exist_ok -> ()
+  in
+  if pt then parents p |> List.rev |> List.iter (mkdir1 default_mode);
+  mkdir1 mode p
