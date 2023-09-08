@@ -25,4 +25,7 @@ module SafeStdlib = struct
   include Formats
 
   include SafeAliases
+
+  (* Prevent access to the full variant library. *)
+  module Stdlib_variants = struct end
 end
