@@ -61,9 +61,8 @@ let write_file_str ?label cfg s p =
 let configure_show_hidden cfg p =
   let check =
     task1 @@ fun _ ->
-        cfg.safe &&
-        (let now = Unix.gettimeofday () in (* TODO: is this actually UTC? seems so... *)
-        cfg.exercise_start <= now && now <= cfg.exercise_end)
+        let now = Unix.gettimeofday () in
+        not cfg.safe || now < cfg.exercise_start || cfg.exercise_end < now
   in
   let write =
     write_file_pp cfg
