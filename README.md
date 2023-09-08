@@ -2,8 +2,7 @@
 
 The Less Power framework consists of a number of libraries and executables for testing untrusted OCaml code. Designed for running programming exercises fully automatically and at scale.
 
-The LP framework was presented at the OCaml Users and Developers Workshop 2023. A high-level overview in the form of an extended abstract is available online at
-https://icfp23-ocaml.hotcrp.com/doc/icfp23-ocaml-final17.pdf. Note that some features described there have yet to be contributed to this repository.
+The LP framework was presented at the OCaml Users and Developers Workshop 2023. A high-level overview in the form of an extended abstract is [available in git](https://github.com/just-max/less-power/blob/icfp23-ocaml-upload/icfp23-ocaml-final17.pdf). Note that some features described there have yet to be contributed to this repository.
 
 ## Install
 
