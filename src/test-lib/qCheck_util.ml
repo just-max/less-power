@@ -75,13 +75,22 @@ let lift_eq eq x y = if eq x y then Some () else None
 let assert_equal' ?(eq = lift_eq (=)) ~printer =
   assert_equal ~eq ~printers:(printer, printer)
 
+let fail_reportf_notrace fmt =
+  Format.kdprintf
+    (fun pp ->
+      Printexc.record_backtrace false;
+      QCheck2.Test.fail_reportf "%t" pp)
+    fmt
+
+let fail_report_notrace s =
+  Printexc.record_backtrace false;
+  QCheck2.Test.fail_report s
+
 (** After performing one or more comparisons with {!assert_equal},
     report a failure as a QCheck failure, or just return [true] otherwise. *)
 let report_result = function
   | Ok _ -> true
-  | Error e ->
-      Printexc.record_backtrace false;
-      QCheck.Test.fail_report e
+  | Error e -> fail_report_notrace e
 
 (** Check a property against a fixed input. *)
 let make_test_single ?name ?print x prop =
