@@ -121,8 +121,6 @@ val group :
   ?skip:string -> ?max_points:int clamp -> string -> grading list -> grading
 (** Wrapper for {{!type-grading.Group}[Group]}. *)
 
-val prettify_results_basic : string -> unit
-
 (** Main entry point: [prettify_results ~grading file_name] reads the JUnit XML
     file in [file_name], evalutes the given [grading] scheme and writes the result
     back to the same file. *)

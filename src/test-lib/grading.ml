@@ -137,21 +137,6 @@ let empty_node ?(attributes = []) label =
   (* empty data, otherwise xmlm doesn't (self-)close empty tags! *) (* TODO: is this still an issue? *)
   El ((("", label), attributes), [ Data "" ])
 
-let prettify_results_basic fn =
-  (* reads a whole file from disk as a string *)
-  let read_file_whole fn =
-    let ch = open_in_bin fn in
-    let s = really_input_string ch (in_channel_length ch) in
-    close_in ch;
-    s
-  in
-  let data = read_file_whole fn in
-  let data = Str.global_substitute (Str.regexp "<failure[^>]+?>\n?") (Fun.const {|<failure type="assert">|}) data in
-  let data = Str.global_substitute (Str.regexp "\n*No backtrace.</failure>") (Fun.const "</failure>") data in
-  let oc = open_out fn in
-  output_string oc data;
-  close_out oc
-
 (* TODO: The functionality for extracting test results and for evaluating a grading
    scheme should be extracted to separate functions. The former would be useful
    to grade test results distributed across multiple files. *)

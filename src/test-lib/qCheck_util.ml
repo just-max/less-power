@@ -82,3 +82,7 @@ let report_result = function
   | Error e ->
       Printexc.record_backtrace false;
       QCheck.Test.fail_report e
+
+(** Check a property against a fixed input. *)
+let make_test_single ?name ?print x prop =
+  QCheck2.Test.make (QCheck2.Gen.pure x) prop ~count:1 ~max_gen:1 ?name ?print

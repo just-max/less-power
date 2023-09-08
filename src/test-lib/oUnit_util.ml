@@ -76,7 +76,8 @@ let message_of_visibility = function
 (** Hide a test according to the [visibility] argument. *)
 let hide_test ?(visibility = PassFail) =
   let fail_test () =
-    raise_notrace (OUnit_failure (message_of_visibility visibility))
+    Printexc.record_backtrace false;
+    assert_failure (message_of_visibility visibility)
   in
   let hide_func func ctx =
     match visibility with
