@@ -58,6 +58,13 @@ let of_qcheck ?(timeout = default_qcheck_timeout) (QCheck2.Test.Test cell) =
   in
   name >: TestCase (test_length, test_fun)
 
+let map_test ?(name = Fun.id) ?(test_fun = Fun.id) ?(test_length = Fun.id) =
+  let[@tail_mod_cons] rec impl = function
+    | TestCase (l, f) -> TestCase (test_length l, test_fun f)
+    | TestList ts -> TestList (List.map impl ts)
+    | TestLabel (n, t) -> TestLabel (name n, impl t)
+  in
+  impl
 
 (** Visibility of tests after hiding. *)
 type visibility =
@@ -74,7 +81,7 @@ let message_of_visibility = function
   | None -> "This hidden test was not executed."
 
 (** Hide a test according to the [visibility] argument. *)
-let hide_test ?(visibility = PassFail) =
+let hide_test ?(visibility = PassFail) test =
   let fail_test () =
     Printexc.record_backtrace false;
     assert_failure (message_of_visibility visibility)
@@ -84,13 +91,17 @@ let hide_test ?(visibility = PassFail) =
     | PassFail -> (try func ctx with _ -> fail_test ())
     | None -> fail_test ()
   in
-  let rec hide = function
-    | TestCase (dur, func) -> TestCase (dur, hide_func func)
-    | TestList tests -> TestList (List.map hide tests)
-    | TestLabel (name, inner) -> TestLabel (name, hide inner)
-  in
-  hide
+  map_test ~test_fun:hide_func test
 
+let conditional_test conditions test =
+  let conditional_func func ctx =
+    Printexc.record_backtrace false;
+    List.iter (fun (msg, c) -> assert_bool msg c) conditions;
+    func ctx
+  in
+  map_test ~test_fun:conditional_func test
+
+let conditional_test1 message condition = conditional_test [message, condition]
 
 (** Join a test tree into a single test which only passes if all individual
     tests in the tree pass. Students will only be able to see the result of
