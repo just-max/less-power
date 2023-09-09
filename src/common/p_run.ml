@@ -44,10 +44,10 @@ type result = {
   }
 
 (** Did the subprocess exit normally? If [check_status] is [false], ignore
-    the exit code and check only for a timeout. *)
+    the exit code and check only for a timeout or signal *)
 let result_is_ok ?(check_status = true) = function[@warning "-4"]
-  | { phase = Completed; _ } when not check_status -> true
-  | { phase = Completed; status = Unix.WEXITED 0; _ } -> true
+  | { phase = Completed; status = Unix.WEXITED c; _ } ->
+      not check_status || c = 0
   | _ -> false
 
 let pp_result ?(hide_stdout = false) ?(hide_stderr = false) ?command_line ppf r =
