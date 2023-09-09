@@ -259,7 +259,9 @@ let std_test cfg = group ~label:"test" @@ of_list [
       subprocess_options ()
         ~timeout:(P_run.timeout (timeout_for cfg `Probe)))
     ~root:"tests/" "exec" ~args:["--no-build"; "--"; "test/test.exe"]
-  |> ignore |> with_ ~label:"probe";
+  |> ignore |> with_ ~label:"top_level";
+  (* note: the 'probe' name here is unrelated to the
+      partial signature checking probe below *)
 
   (* run the test! *)
   dune cfg
