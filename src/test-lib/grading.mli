@@ -23,6 +23,24 @@ type grading_criterion =
   | OneOf of grading_criterion list  (** Disjunction (logical or). *)
   | AllOf of grading_criterion list  (** Conjunction (logical and). *)
   | Constant of bool  (** Logical constant. *)
+(** [Passed] and [Failed] values may use wildcards:
+
+  - Trailing colon, e.g. [a:b:c:]: matches anything of which it is a prefix,
+      e.g. [a:b:c:d:e] and [a:b:c].
+  - Star as name, e.g. [a:*:c]: matches any name in place of [*],
+      e.g. [a:mmm:c].
+
+  Both may be combined, e.g. [a:*:c:] matches [a:mm:c] and [a:nn:c:d].
+
+  For a [Passed] value to evaluate to true, **all** tests matched by the
+  wildcard need to pass, and for [Failed] all need to fail. If you want the
+  inverse behavior ( **at least** one matched test needs to pass/fail),
+  use [Not]: [Not (Failed "a:*:")] means "not all matched tests failed",
+  which is logically equivalent to "at least one matched test passed".
+
+  It is in error to reference a test that does not exist.
+  In the presence of wildcards, at least one test must match.
+*)
 
 val implies : grading_criterion -> grading_criterion -> grading_criterion
 (** Logical implication: [implies a c = OneOf [Not a; c]]. *)
@@ -70,6 +88,7 @@ exception No_reason
 
     If [reason] returns a value, that is used directly instead. *)
 val points :
+  ?skip:grading_criterion ->
   ?reason:(tests -> grading_criterion -> string option) ->
   ?penalty:bool ->
   string ->
@@ -86,6 +105,7 @@ val assertion :
   ?message:string -> ?title:string -> int -> grading_criterion -> grading
 
 val points_p :
+  ?skip:grading_criterion ->
   ?reason:(tests -> grading_criterion -> string option) ->
   ?penalty:bool ->
   string ->
@@ -94,6 +114,7 @@ val points_p :
   grading
 
 val points_f :
+  ?skip:grading_criterion ->
   ?reason:(tests -> grading_criterion -> string option) ->
   ?penalty:bool ->
   string ->
@@ -102,6 +123,7 @@ val points_f :
   grading
 
 val points_c :
+  ?skip:grading_criterion ->
   ?reason:(tests -> grading_criterion -> string option) ->
   ?penalty:bool ->
   string ->

@@ -14,6 +14,35 @@ type grading_criterion =
   | AllOf of grading_criterion list
   | Constant of bool
 
+let matches_test ~query test =
+  let rec impl qs ts = match qs, ts with
+    | [], [] -> true
+    | [""], _ -> true  (* query ended with trailing : *)
+    | [], _ | _, [] -> false
+    | q :: qs, t :: ts -> if q = "*" || q = t then impl qs ts else false
+  in
+  if query = [""] then test = [""]
+  else impl query test
+
+(* currently unused *)
+let[@warning "-32"] is_fixed_query query =
+  (query = [""] || List.(hd (rev query) <> "")) && List.for_all ((<>) "*") query
+
+let parse_name = String.split_on_char ':'
+
+let rec eval_criterion (tests : tests) = function
+  | Passed query ->
+      let q = parse_name query in
+      let matched = List.filter (fun (test, _) -> matches_test ~query:q (parse_name test)) tests in
+      if matched = [] then raise Not_found; (* at least one test needs to match *)
+      List.for_all snd matched
+  | Failed query ->
+      eval_criterion (List.map (fun (test, ok) -> (test, not ok)) tests) (Passed query)
+  | Not crit -> eval_criterion tests crit |> not
+  | OneOf crits -> List.exists (eval_criterion tests) crits
+  | AllOf crits -> List.for_all (eval_criterion tests) crits
+  | Constant const -> const
+
 let mk_indent n = String.make n ' '
 
 let rec string_of_grading_criterion ?(indent = 0) = function
@@ -23,14 +52,6 @@ let rec string_of_grading_criterion ?(indent = 0) = function
   | OneOf crits -> mk_indent indent ^ "OneOf:\n" ^ String.concat "\n" (List.map (string_of_grading_criterion ~indent:(succ indent)) crits)
   | AllOf crits -> mk_indent indent ^ "AllOf:\n" ^ String.concat "\n" (List.map (string_of_grading_criterion ~indent:(succ indent)) crits)
   | Constant const -> mk_indent indent ^ "Constant: " ^ string_of_bool const
-
-let rec eval_criterion (tests : tests) = function
-  | Passed test -> List.assoc test tests
-  | Failed test -> List.assoc test tests |> not
-  | Not crit -> eval_criterion tests crit |> not
-  | OneOf crits -> List.exists (eval_criterion tests) crits
-  | AllOf crits -> List.for_all (eval_criterion tests) crits
-  | Constant const -> const
 
 type grading =
   | Points of {
@@ -44,8 +65,9 @@ type grading =
 
 exception No_reason
 
-let points ?(reason = fun _ _ -> None) ?penalty title points test_case =
+let points ?(skip = Constant false) ?(reason = fun _ _ -> None) ?penalty title points test_case =
   let reason t c =
+    if eval_criterion t skip then raise No_reason else
     match (penalty, points < 0) with
     | Some false, _ | None, false -> (
           match reason t c with
@@ -69,9 +91,9 @@ let assertion ?(message = "ASSERTION FAILED") ?(title = "assertion") points test
         else "\n\n" ^ message ^ ":\n" ^ string_of_grading_criterion test_case ^ "\n")
     }
 
-let points_p ?reason ?penalty title point test_case = points ?reason ?penalty title point (Passed test_case)
-let points_f ?reason ?penalty title point test_case = points ?reason ?penalty title point (Failed test_case)
-let points_c ?reason ?penalty title point test_case = points ?reason ?penalty title point (Constant test_case)
+let points_p ?skip ?reason ?penalty title point test_case = points ?skip ?reason ?penalty title point (Passed test_case)
+let points_f ?skip ?reason ?penalty title point test_case = points ?skip ?reason ?penalty title point (Failed test_case)
+let points_c ?skip ?reason ?penalty title point test_case = points ?skip ?reason ?penalty title point (Constant test_case)
 let conditional condition message content = Conditional { condition; message; content }
 let conditional_c condition message content = conditional (Constant condition) message content
 let group ?skip ?max_points title items = Group { title; max_points; items; skip }
