@@ -354,6 +354,7 @@ let run_probe cfg ~root ~data_dir ~name =
       ~options:(
         subprocess_options ()
           ~check_status:false
+          ~hide_stdout:true ~hide_stderr:true
           ~timeout:(P_run.timeout (timeout_for cfg `Build)))
       ~root "build" ~args:["--force"; probe_dir]
   in
