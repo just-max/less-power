@@ -1,5 +1,4 @@
 open Common.Util
-open Ppxlib
 
 module Messages = struct
   let array = "This is a use of array syntax, which is not permitted"
@@ -48,7 +47,7 @@ module Feature = struct
 end
 
 type violation = {
-  location : Location.t ;
+  location : Ppxlib.Location.t ;
   message : string option ;
   feature : Feature.t ;
 }
@@ -65,7 +64,8 @@ let iter_violations ctx violations =
   List.iter ctx.on_violation violations
 
 module Patterns = struct
-  open Ast_pattern
+  open Ppxlib.Ast
+  open Ppxlib.Ast_pattern
   open Feature
 
   let ( or ) = ( ||| )
@@ -112,7 +112,7 @@ let is_internal_name s =
   && string_contains ~needle:"__" s
 
 let rec ident_contains_internal_name =
-  let open Longident in
+  let open Ppxlib.Longident in
   function
   | Lident s -> is_internal_name s
   | Ldot (id, s) ->
@@ -121,9 +121,13 @@ let rec ident_contains_internal_name =
       ident_contains_internal_name id1 || ident_contains_internal_name id2
 
 let iter_violations context =
+  let open Ppxlib.Ast in
+  let open Ppxlib.Location in
+
   let open Feature in
   let open Patterns in
-  let iter ?loc sup f (ctx_loc : Location.t) x =
+
+  let iter ?loc sup f (ctx_loc : Ppxlib.Location.t) x =
     let loc' = Option.fold loc ~some:~$x ~none:ctx_loc in
     f loc' x; sup loc' x
   in
@@ -133,11 +137,11 @@ let iter_violations context =
       |> iter_violations context
   in
   let violation_pat pat location x =
-    Ast_pattern.parse (pat ()) location x Fun.id
+    Ppxlib.Ast_pattern.parse (pat ()) location x Fun.id
     |> iter_violations context
   in
   object
-    inherit [Location.t] Ast_traverse.map_with_context as super
+    inherit [Ppxlib.Location.t] Ppxlib.Ast_traverse.map_with_context as super
 
     (** Context: replace the current location with the given location. *)
     method! loc k _ located = super#loc k located.loc located
@@ -183,7 +187,7 @@ let iter_violations context =
 
   end
 
-let ast_violations ?(prohibited = Feature.default) ?limit (ast : structure) =
+let ast_violations ?(prohibited = Feature.default) ?limit (ast : Ppxlib.structure) =
   if limit = Some 0 then [] else (* you do you... *)
   let violations = ref [] in
   let count = ref 0 in
@@ -198,12 +202,12 @@ let ast_violations ?(prohibited = Feature.default) ?limit (ast : structure) =
             if !count >= l then raise Violation_limit) ;
     }
   in
-  match iterator#structure Location.none ast with
+  match iterator#structure Ppxlib.Location.none ast with
   | _ | exception Violation_limit -> List.rev !violations
 
 
 let file_violations ?prohibited ?limit path =
-  Ocaml_common.Pparse.parse_implementation ~tool_name:"lp-ast-check" path
+  Pparse.parse_implementation ~tool_name:"lp-ast-check" path
   |> ast_violations ?prohibited ?limit
 
 let path_violations ?(follow = FileUtil.Follow) ?prohibited ?limit
@@ -214,10 +218,17 @@ let path_violations ?(follow = FileUtil.Follow) ?prohibited ?limit
 
 
 let pp_violation ppf vio =
-  let open Ocaml_common.Location in
+  let open Location in
+  (* convert between Ppxlib and native types (why?) *)
+  let loc = {
+    loc_start = vio.location.Ppxlib.Location.loc_start;
+    loc_end = vio.location.Ppxlib.Location.loc_end;
+    loc_ghost = vio.location.Ppxlib.Location.loc_ghost;
+  }
+  in
   let report =
     let open Common.Pp_util in
-    errorf ~loc:vio.location "@[<v>%a%a@]"
+    errorf ~loc "@[<v>%a%a@]"
       (pp_of pp_flow Feature.to_message) vio.feature
       Fmt.(option (cut ++ pp_flow)) vio.message
   in
