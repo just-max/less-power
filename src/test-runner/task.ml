@@ -33,6 +33,11 @@ and (_, _) tasks =
   | Nil : ('a, 'a) tasks
   | Cons : ('a, 'b) tree * ('b, 'c) tasks -> ('a, 'c) tasks
 
+let tree ?label ?timeout task = { label; timeout; task }
+let nil = Nil
+let (@:>) tree tasks = Cons (tree, tasks)
+let cons tree tasks = tree @:> tasks
+
 (** Join two lists of tasks. *)
 let[@tail_mod_cons] rec app :
     type a b c. (a, b) tasks -> (b, c) tasks -> (a, c) tasks =
@@ -47,7 +52,7 @@ let singleton t = Cons (t, Nil)
 let snoc ts t = app ts (singleton t)
 
 (** [then_ t2 t1] is the task list [[t1; t2]] *)
-let then_ t2 t1 = app (singleton t1) (singleton t2)
+let then_ t2 t1 = t1 @:> t2 @:> nil
 
 let with_ ?timeout ?label (t : _ tree) =
   { t with label = or_option label t.label; timeout = or_option timeout t.timeout }
@@ -207,17 +212,23 @@ let rec then_map_k : type a b. (a -> b) -> a k -> b k =
 and then_map : type a b c. (b -> c) -> (a, b) tree -> (a, c) tree = fun f t ->
   { t with task = t.task %> then_map_k f }
 
+let then_subtask st t =
+  let task x =
+    let Cont (y, sts) = t.task x in
+    Cont (y, snoc sts st)
+  in
+  { t with task }
+
 (** Ignore the result of a task (replace it with [()]). *)
 let ignore t = t |> then_map ignore
 
 let first_map f t = { t with task = fun x -> t.task (f x) }
 
-let then_subtask st t =
-  let task x =
-    let Cont (y, sts) = t.task x in
-    Cont (y, app sts (singleton st))
-  in
-  { t with task }
+let first_const x = first_map @@ Fun.const x
+
+let first_ignore t = first_const () t
+
+let pure x : _ tree = task1 @@ Fun.const x
 
 let accumulator f t =
   let task x =
@@ -226,12 +237,21 @@ let accumulator f t =
   in
   { t with task }
 
-let accumulating f z ts =
-  let task _ = Cont (z, of_list (List.map (accumulator f) ts)) in
-  { timeout = None; label = None; task }
+(** [spawning k] runs as the list of tasks produced
+    by applying [k] to the task's input *)
+let spawning k = tree @@ fun x -> Cont ((), k x)
 
-let collecting ts =
-  accumulating (fun xs x -> x :: xs) [] ts |> then_map List.rev
+(** [accumulating f ts] uses [f] to combine the output of
+    each task into a running accumulator value *)
+let accumulating (f : 'a -> _ -> 'a) ts = List.map (accumulator f) ts
+
+(** [collecting ts] pushes the outputs of each task onto a list *)
+let collecting ts = accumulating (fun xs x -> x :: xs) ts
+
+(** [collecting'] is like {!collecting}, except with an empty initial list
+    and a final [List.rev] step so that the results are in order;
+    the result is a {!tasks} rather than a list *)
+let collecting' ts = cons (pure []) (snoc (of_list (collecting ts)) (task1 List.rev))
 
 let pp_summary ~failure ?(show_anon = false) () : summary Fmt.t =
   let open Fmt in
