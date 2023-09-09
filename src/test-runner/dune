@@ -5,6 +5,7 @@
   common
   ast_check
 
+  compiler-libs.common
   unix
 
   cmdliner

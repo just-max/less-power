@@ -44,7 +44,7 @@ let check_contains_symlink cfg p =
       if contains_symlink Path_util.(cfg.build_root / p)
       then fail Messages.symlink
 
-let write_file_pp ?label cfg pp p =
+let write_file_pp ?label cfg p pp =
   task1 ?label @@ fun x ->
       let< ch = Out_channel.with_open_text Path_util.(cfg.build_root / p) in
       let ppf = Format.formatter_of_out_channel ch in
@@ -53,10 +53,10 @@ let write_file_pp ?label cfg pp p =
 
 let write_file_f ?label cfg p =
   Format.kdprintf @@ fun pp ->
-      first_map (Fun.const pp) @@ write_file_pp ?label cfg (Fmt.fmt "%t") p
+      first_map (Fun.const pp) @@ write_file_pp ?label cfg p (Fmt.fmt "%t")
 
 let write_file_str ?label cfg s p =
-  write_file_pp ?label cfg (fun fmt _ -> Format.pp_print_string fmt s) p
+  write_file_pp ?label cfg p (fun fmt _ -> Format.pp_print_string fmt s)
 
 let configure_show_hidden cfg p =
   let check =
@@ -65,16 +65,15 @@ let configure_show_hidden cfg p =
         not cfg.safe || now < cfg.exercise_start || cfg.exercise_end < now
   in
   let write =
-    write_file_pp cfg
+    write_file_pp cfg p
       (fun fmt -> Format.fprintf fmt "let show_hidden = %b")
-      p
   in
   group ~label:"configure_show_hidden" (check |> then_ write)
 
 (** Task: remove the files which match [condition] (default: [.ml] files).
     Not recursive: only files in [p] will be deleted, not in subdirectories. *)
 let remove_files ?(condition = FileUtil.Has_extension "ml") cfg p =
-  task1 (* ?label:(if_option label (f"remove_files[%s]" p)) *) @@ fun _ ->
+  task1 @@ fun _ ->
       Path_util.readdir_p Path_util.(cfg.build_root / p)
       |> Seq.iter (fun p1 ->
           if Path_util.is_code ~condition p1 then Sys.remove p1)
@@ -82,7 +81,7 @@ let remove_files ?(condition = FileUtil.Has_extension "ml") cfg p =
 (** Task: copy the files which match [condition] (default: [.ml] files).
     Not recursive: only files in [src0] will be copied, not in subdirectories. *)
 let copy_files ?(condition = FileUtil.Has_extension "ml") cfg src0 dst0 =
-  task1 (* ~label:(f"copy_code[%s->%s]" src0 dst0) *) @@ fun _ ->
+  task1 @@ fun _ ->
       let src = Unix.realpath Path_util.(cfg.build_root / src0) in
       let dst = Path_util.(cfg.build_root / dst0) in
       Path_util.readdir_p src
@@ -96,10 +95,13 @@ let load_files cfg ?condition src dst =
   let cp = (copy_files ?condition cfg src dst) in
   group (* ~label:(f"load_files[%s->%s]" src dst) *) (rm |> then_ cp)
 
-let make_test_report_directory cfg p =
-  let mk () = Path_util.mkdir ~exist_ok:true Path_util.(cfg.build_root / p) in
-  let rm = remove_files ~condition:(FileUtil.Has_extension "xml") cfg p in
+let make_clean_directory ?(remove = FileUtil.True) cfg p =
+  let mk _ = Path_util.mkdir ~exist_ok:true Path_util.(cfg.build_root / p) in
+  let rm = remove_files ~condition:remove cfg p in
   group (task1 mk |> then_ rm)
+
+let make_test_report_directory =
+  make_clean_directory ~remove:(FileUtil.Has_extension "xml")
 
 (** Run the {{!module-Ast_check.val-path_violations}AST-checker} as a task. *)
 let checker cfg ?prohibited ?(limit = 3) ?check1 ?check p =
@@ -175,7 +177,11 @@ let subprocess cfg ?(options = subprocess_options ()) ?args command =
 
 let dune cfg ?options ~root ?(args = []) cmd =
   subprocess cfg ?options "opam"
-    ~args:(["exec"; "--"; "dune"; cmd; "--root"; Path_util.(cfg.build_root / root)] @ args)
+    ~args:([
+        "exec"; "--"; "dune"; cmd;
+        "--no-print-directory";
+        "--root"; Path_util.(cfg.build_root / root);
+      ] @ args)
 
 let timeout_for cfg = function
   | `Build -> cfg.build_timeout
@@ -266,3 +272,120 @@ let std_test cfg = group ~label:"test" @@ of_list [
       "-output-junit-file"; "test-reports/results.xml"]
   |> ignore |> with_ ~label:"run";
 ]
+
+
+(** {1 Probe-related tasks (partial type correctness checking)} *)
+
+type probe_result = {
+  name : string (** the name given to the probe definition *);
+  ok : bool (** did the check pass? *);
+  message : string (** compiler output *);
+}
+
+let probe_result_of_prun_result ~name p_run_result =
+  P_run.{
+    name;
+    ok = result_is_ok ~check_status:true p_run_result;
+    message =
+      [ p_run_result.stdout; p_run_result.stderr ]
+      |> List.map String.trim |> List.filter (fun s -> s <> "")
+      |> String.concat "\n";
+  }
+
+let defines_of_probe_result probe_result =
+  (if probe_result.ok then [f"%s_PROBE" probe_result.name] else []) @
+  [
+    f"%s_OK %b" probe_result.name probe_result.ok;
+    f"%s_MSG %S" probe_result.name probe_result.message;
+  ]
+
+(** [[A-Z_]*] *)
+let is_probe_name =
+  let ok_chars =
+    Hashtbl.of_seq @@ Seq.map (fun c -> c, ())
+    @@ String.to_seq "_ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  in
+  fun s -> Seq.for_all (Hashtbl.mem ok_chars) (String.to_seq s)
+
+(** parse the probe items from the given path *)
+let load_probe_items cfg ~defs = task1 @@ fun _ ->
+  let open Parsetree in
+  let ast =
+    Pparse.parse_implementation
+      ~tool_name:"probe" Path_util.(cfg.build_root / defs)
+  in
+  let map_stri =
+    let open Asttypes in
+    function[@warning "-4"]
+    | Pstr_module {
+        pmb_name = { txt = Some name; _ };
+        pmb_expr = { pmod_desc = Pmod_structure st ; _ };
+        _
+      } when is_probe_name name -> Some (name, st)
+    | _ -> None
+  in
+  List.map (fun si -> si.pstr_desc) ast
+  |> List.filter_map map_stri
+
+let probe_dune ~name ~dep =
+  Format.dprintf
+    "(library (name %s)\
+      (flags (:standard -w -a))\
+      (libraries probe_common %s))"
+    name dep
+
+let probe_dir_path data_dir ~name = Path_util.(data_dir / name)
+
+let gen_probe cfg ~data_dir ~dep ~name stri =
+  let open Path_util in
+  let probe_dir = probe_dir_path data_dir ~name in
+  group @@ of_list [
+    make_clean_directory cfg probe_dir
+      ~remove:FileUtil.(Or (Basename_is "dune", Has_extension "ml"));
+    write_file_f cfg (probe_dir / "dune") "%t" (probe_dune ~name ~dep);
+    write_file_f cfg (probe_dir / "probe.ml") "%a" Pprintast.structure stri;
+  ]
+
+(** unlike the other tasks, [data_dir] needs to be relative to [root] here *)
+let run_probe cfg ~root ~data_dir ~name =
+  let probe_dir = probe_dir_path data_dir ~name in
+  let probe () =
+    dune cfg
+      ~options:(
+        subprocess_options ()
+          ~check_status:false
+          ~timeout:(P_run.timeout (timeout_for cfg `Build)))
+      ~root "build" ~args:["--force"; probe_dir]
+  in
+  let mk_result = task1 (probe_result_of_prun_result ~name) in
+  group (probe () |> then_ mk_result)
+
+let handle_probe_results cfg ~args_file =
+  first_map (List.concat_map defines_of_probe_result) @@
+  let open Fmt in
+  write_file_pp cfg args_file (vbox @@ list (const string "-D" ++ cut ++ string))
+
+(** all paths are relative to [root] *)
+let probe cfg ~root ~defs ~dep ~data_dir ~args_file =
+  let root_rel d = Path_util.(root / d) in
+  let mk_data_dir = make_clean_directory cfg (root_rel data_dir) in
+  let load = load_probe_items cfg ~defs:(root_rel defs) in
+  let probe1 (name, stri) =
+    gen_probe cfg ~data_dir:(root_rel data_dir) ~dep ~name stri
+    |> then_ @@ run_probe cfg ~root ~data_dir ~name
+    |> group ~label:name
+  in
+  let probe_all =
+    spawning (fun ps -> List.map probe1 ps |> collecting')
+    |> with_ ~label:"items"
+  in
+  let post = handle_probe_results cfg ~args_file:(root_rel args_file) in
+  mk_data_dir @:> load @:> probe_all @:> post @:> nil |> group ~label:"probe"
+
+let std_probe cfg =
+  probe cfg
+    ~root:"tests/"
+    ~defs:"probe/probe_defs.ml"
+    ~dep:"assignment"
+    ~data_dir:"probe-data/"
+    ~args_file:".probe-args"
