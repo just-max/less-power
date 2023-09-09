@@ -16,9 +16,8 @@ let is_code ?(condition = FileUtil.True) p =
   else test (And (Is_file, condition)) p
 
 let[@tail_mod_cons] rec parents path =
-  match FilePath.dirname path with
-  | "" -> []
-  | parent -> parent :: parents parent
+  let parent = Filename.dirname path in
+  if FilePath.compare path parent = 0 then [] else parent :: parents parent
 
 let default_mode = 0o777
 
