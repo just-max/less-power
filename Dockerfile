@@ -1,4 +1,4 @@
-FROM ocaml/opam:ubuntu-lts-ocaml-5.0
+FROM ocaml/opam:debian-12-ocaml-5.0
 
 WORKDIR /home/opam/less-power/
 
