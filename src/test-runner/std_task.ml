@@ -35,6 +35,7 @@ type cfg = {
   test_timeout : Mtime.span ;
   probe_timeout : Mtime.span ;
 
+  timestamp_now : float option (** Override current time, UTC *);
   exercise_start : float (** UTC time *);
   exercise_end : float (** UTC time *);
 }
@@ -61,7 +62,11 @@ let write_file_str ?label cfg s p =
 let configure_show_hidden cfg p =
   let check =
     task1 @@ fun _ ->
-        let now = Unix.gettimeofday () in
+        let now =
+          match cfg.timestamp_now with
+          | None -> Unix.gettimeofday ()
+          | Some t -> t
+        in
         not cfg.safe || now < cfg.exercise_start || cfg.exercise_end < now
   in
   let write =
