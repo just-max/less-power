@@ -48,34 +48,45 @@ let test_timeout =
   mk_timeout ~names:[ "test-timeout" ] ~default:Mtime.Span.(10 * min)
     ~task:"running test executable"
 
-(* TODO: timestamp formatting is ugly *)
-let mk_timestamp ~default ~names ~when_ =
+let mk_timestamp ~names ?doc ?absent arg =
+  Arg.(value & arg & info names ?doc ?absent ~docv:"TIMESTAMP")
+
+let timestamp_now =
+  let doc =
+    "Use the given timestamp instead of the system time to \
+      decide whether to show or hide hidden and secret tests."
+  in
+  Arg.(
+    mk_timestamp ~names:[ "now" ] ~doc ~absent:"current time"
+    & opt (some float) None)
+
+let mk_timestamp_start_end ~when_ ~names ~default =
   let doc =
     f"%s time of the exercise (as a UNIX timestamp, in UTC). \
     Determines when secret test results are hidden and shown."
     (String.capitalize_ascii when_)
   in
-  Arg.(value & opt float default & info names ~doc ~docv:"TIMESTAMP")
+  Arg.(mk_timestamp ~names ~doc ~absent:"unbounded" & opt float default)
 
 let exercise_start =
-  mk_timestamp ~default:(-. max_float)
+  mk_timestamp_start_end ~default:Float.neg_infinity
     ~names:[ "exercise-start" ] ~when_:"start"
 
 let exercise_end =
-  mk_timestamp ~default:max_float ~names:[ "exercise-end" ] ~when_:"end"
-
+  mk_timestamp_start_end ~default:Float.infinity
+    ~names:[ "exercise-end" ] ~when_:"end"
 
 let term_of_runner runner =
   Term.(
     const runner $ build_root $ safe $ build_timeout $ probe_timeout
-      $ test_timeout $ exercise_start $ exercise_end
+      $ test_timeout $ timestamp_now $ exercise_start $ exercise_end
   )
 
 let runner_with_cfg of_cfg build_root safe build_timeout probe_timeout
-    test_timeout exercise_start exercise_end =
+    test_timeout timestamp_now exercise_start exercise_end =
   {
     build_root; safe; build_timeout; probe_timeout;
-    test_timeout; exercise_start; exercise_end
+    timestamp_now; test_timeout; exercise_start; exercise_end
   }
   |> of_cfg
 
