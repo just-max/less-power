@@ -77,18 +77,22 @@ let exercise_end =
     ~names:[ "exercise-end" ] ~when_:"end"
 
 let term_of_runner runner =
+  let runner0 build_root safe build_timeout probe_timeout
+      test_timeout timestamp_now exercise_start exercise_end =
+    if not (exercise_start < exercise_end) then
+      `Error (true, "exercise start must be before exercise end")
+    else
+      `Ok
+        (runner {
+          build_root; safe; build_timeout; probe_timeout;
+          timestamp_now; test_timeout; exercise_start; exercise_end
+        })
+  in
   Term.(
-    const runner $ build_root $ safe $ build_timeout $ probe_timeout
-      $ test_timeout $ timestamp_now $ exercise_start $ exercise_end
+    ret
+      (const runner0 $ build_root $ safe $ build_timeout $ probe_timeout
+        $ test_timeout $ timestamp_now $ exercise_start $ exercise_end)
   )
-
-let runner_with_cfg of_cfg build_root safe build_timeout probe_timeout
-    test_timeout timestamp_now exercise_start exercise_end =
-  {
-    build_root; safe; build_timeout; probe_timeout;
-    timestamp_now; test_timeout; exercise_start; exercise_end
-  }
-  |> of_cfg
 
 let build_report_junit ?(time = Mtime.Span.zero) message =
   let open Junit in
@@ -105,7 +109,7 @@ let build_report_junit ?(time = Mtime.Span.zero) message =
 
 let task_runner
     ?(build_report_path = Path_util.(std_test_report_dir / "build.xml"))
-    task_of_cfg cfg =
+    task_of_cfg (cfg : cfg) =
   let open Task in
   let task : (unit, unit) tree = task_of_cfg cfg in
   let result, summary = run task () in
@@ -131,10 +135,6 @@ let command_of_term term =
   Cmd.v info term
 
 let run_task_main ?build_report_path ?(exit = exit) task_of_cfg =
-  let term =
-    term_of_runner
-      (runner_with_cfg
-        (task_runner ?build_report_path task_of_cfg))
-  in
-  let cmd = command_of_term term in
-  Cmd.eval cmd |> exit
+  task_runner ?build_report_path task_of_cfg
+  |> term_of_runner |> command_of_term
+  |> Cmd.eval |> exit
