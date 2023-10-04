@@ -94,12 +94,18 @@ let term_of_runner runner =
         $ test_timeout $ timestamp_now $ exercise_start $ exercise_end)
   )
 
+(** [Testcase.error] if [message] is [Some _], otherwise [Testcase.pass] *)
 let build_report_junit ?(time = Mtime.Span.zero) message =
   let open Junit in
   let test_case =
-    Testcase.error ~typ:"" ~name:"build" ~classname:"build"
+    let mk_testcase =
+      match message with
+      | None -> Testcase.pass
+      | Some msg -> Testcase.error ~typ:"" msg
+    in
+    mk_testcase
+      ~name:"build" ~classname:"build"
       ~time:(time |> Util.span_to_float_s)
-      message
   in
   let test_suite =
     Testsuite.make ~name:"build" ()
@@ -107,8 +113,14 @@ let build_report_junit ?(time = Mtime.Span.zero) message =
   in
   make [test_suite]
 
+(** Creates a task from the config, and runs it. Reports the result as a
+    test case (in [build_report_path], default [test-reports/build.xml]).
+    If [report_success_details] is [false] (default), no detailed build
+    report is shown when the build succeeds. Otherwise, the detailed report is
+    always shown, which requires that the test case is marked as a failure.*)
 let task_runner
     ?(build_report_path = Path_util.(std_test_report_dir / "build.xml"))
+    ?(report_success_details = false)
     task_of_cfg (cfg : cfg) =
   let open Task in
   let task : (unit, unit) tree = task_of_cfg cfg in
@@ -124,7 +136,9 @@ let task_runner
   Path_util.mkdir (Filename.dirname build_report_path)
     ~exist_ok:true ~parents:true;
   let junit =
-    build_report_junit (Format.asprintf "%t" pp_result)
+    build_report_junit
+      (if Result.is_error result || report_success_details
+        then Some (Format.asprintf "%t" pp_result) else None)
       ~time:summary.elapsed_total
   in
   Junit.to_file junit build_report_path
@@ -134,7 +148,8 @@ let command_of_term term =
   let info = Cmd.info "test-runner" ~doc in
   Cmd.v info term
 
-let run_task_main ?build_report_path ?(exit = exit) task_of_cfg =
-  task_runner ?build_report_path task_of_cfg
+let run_task_main ?build_report_path ?report_success_details
+    ?(exit = exit) task_of_cfg =
+  task_runner ?build_report_path ?report_success_details task_of_cfg
   |> term_of_runner |> command_of_term
   |> Cmd.eval |> exit
