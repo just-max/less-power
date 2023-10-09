@@ -22,6 +22,7 @@ module Feature = struct
     | Primitive | Internal_name | Tail_mod_cons | Other
 
   (* TODO: add TMC to AST-checker tests (needs executable to support flags) *)
+  (* TODO: remove Other? *)
 
   module Set = Set.Make (struct type nonrec t = t let compare = compare end)
 
@@ -51,6 +52,12 @@ type violation = {
   message : string option ;
   feature : Feature.t ;
 }
+
+let pp_violation_message : violation Fmt.t = fun fmt vio ->
+  let open Common.Pp_util in
+  Format.fprintf fmt "@[<v>%a%a@]"
+    (pp_of (* pp_flow *) pp_text Feature.to_message) vio.feature
+    Fmt.(option (cut ++ pp_flow)) vio.message
 
 let violation location ?message feature = { location ; message; feature }
 let violation1 location ?message feature = [violation location ?message feature]
@@ -206,6 +213,20 @@ let ast_violations ?(prohibited = Feature.default) ?limit (ast : Ppxlib.structur
   | _ | exception Violation_limit -> List.rev !violations
 
 
+type expansion_ctx = Ppxlib.Expansion_context.Base.t
+type 'a transformation = expansion_ctx -> 'a -> 'a
+
+let ast_violations_transformation ?prohibited ?limit (_ : expansion_ctx) ast =
+  let pstr_of_violation v =
+    let ext =
+      Ppxlib.Location.error_extensionf ~loc:v.location
+        "%a" pp_violation_message v
+    in
+    Ppxlib.Ast.{ pstr_desc = Pstr_extension (ext, []); pstr_loc = v.location }
+  in
+  List.map pstr_of_violation (ast_violations ?prohibited ?limit ast) @ ast
+
+
 let file_violations ?prohibited ?limit path =
   Pparse.parse_implementation ~tool_name:"lp-ast-check" path
   |> ast_violations ?prohibited ?limit
@@ -226,10 +247,16 @@ let pp_violation ppf vio =
     loc_ghost = vio.location.Ppxlib.Location.loc_ghost;
   }
   in
-  let report =
-    let open Common.Pp_util in
-    errorf ~loc "@[<v>%a%a@]"
-      (pp_of pp_flow Feature.to_message) vio.feature
-      Fmt.(option (cut ++ pp_flow)) vio.message
-  in
+  let report = errorf ~loc "%a" pp_violation_message vio in
   print_report ppf report
+
+
+let strip_signatures (_ : expansion_ctx) ast =
+  let open Ppxlib.Ast in
+  let mapper = object
+    inherit Ppxlib.Ast_traverse.map as super
+    method! module_expr = function[@warning "-4"]
+      | { pmod_desc = Pmod_constraint (v, _); _ } -> super#module_expr v
+      | v -> super#module_expr v
+  end in
+  mapper#structure ast

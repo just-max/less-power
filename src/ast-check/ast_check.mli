@@ -82,9 +82,37 @@ val path_violations :
   (violation list -> unit) -> string -> unit
   (* TODO: the callback could take the path, too... *)
 
+(** Pretty-print the message of a violation, containing a generic message
+    that describes the {{!violation.feature}feature} and the specific
+    {{!violation.message}message} of the violation.*)
+val pp_violation_message : Format.formatter -> violation -> unit
+
 (** Pretty-print a violation. Violations from a given file should be printed
     before the next file is parsed, otherwise no context from the source file
     will be output.
 
     Breaks pretty-printing, this is a limitation of {!Location.print_report} *)
 val pp_violation : Format.formatter -> violation -> unit
+
+(** {2 Ppxlib transformations}
+    Transformations intended directly for use with Ppxlib. *)
+
+type 'a transformation = Expansion_context.Base.t -> 'a -> 'a
+
+(** As per {!ast_violations}, but intended directly for use as a Ppxlib
+    transformation. Errors are embedded as extension nodes in the returned AST. *)
+val ast_violations_transformation :
+  ?prohibited:Feature.Set.t -> ?limit:int -> Ppxlib.structure transformation
+
+(** Removes module type annotations on modules.
+    For example, these two definitions:
+    {[
+      module M : S = struct ... end
+      module M : S with type t = ... = struct ... end
+    ]}
+    Both become:
+    {[ module M = struct ... end ]}
+
+    Allows testing code that annotated module types but didn't think
+    to add the [with] constraint to expose the type. *)
+val strip_signatures : Ppxlib.Ast.structure transformation
