@@ -56,7 +56,7 @@ type violation = {
 let pp_violation_message : violation Fmt.t = fun fmt vio ->
   let open Common.Pp_util in
   Format.fprintf fmt "@[<v>%a%a@]"
-    (pp_of (* pp_flow *) pp_text Feature.to_message) vio.feature
+    (pp_of pp_flow Feature.to_message) vio.feature
     Fmt.(option (cut ++ pp_flow)) vio.message
 
 let violation location ?message feature = { location ; message; feature }
