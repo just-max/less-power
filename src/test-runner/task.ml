@@ -253,7 +253,7 @@ let collecting ts = accumulating (fun xs x -> x :: xs) ts
     the result is a {!tasks} rather than a list *)
 let collecting' ts = cons (pure []) (snoc (of_list (collecting ts)) (task1 List.rev))
 
-let pp_summary ~failure ?(show_anon = true) () : summary Fmt.t =
+let pp_summary ~failure ?(show_anon = false) () : summary Fmt.t =
   let open Fmt in
   let[@tail_mod_cons] rec tag_failures failure = function
     | [] -> []
