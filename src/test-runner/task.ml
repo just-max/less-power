@@ -253,10 +253,16 @@ let collecting ts = accumulating (fun xs x -> x :: xs) ts
     the result is a {!tasks} rather than a list *)
 let collecting' ts = cons (pure []) (snoc (of_list (collecting ts)) (task1 List.rev))
 
-let pp_summary ~failure ?(show_anon = false) () : summary Fmt.t =
+let pp_summary ~failure ?(show_anon = true) () : summary Fmt.t =
   let open Fmt in
-  let f (s : summary) = show_anon || Option.is_some s.label in
-  let rec pp_summary failure ppf (summary : summary) =
+  let[@tail_mod_cons] rec tag_failures failure = function
+    | [] -> []
+    | ({ label = None; _ } : summary) :: ss
+        when not show_anon -> tag_failures failure ss
+    | [s] when failure -> [(s, true)]
+    | s :: ss -> (s, false) :: tag_failures failure ss
+  in
+  let rec pp_summary ppf ((summary : summary), failure) =
     pf ppf "@[<v 2>+ @[%a (%a)   %s@]%a@]"
       (option ~none:(const string "<anon>") string) summary.label
       Mtime.Span.pp summary.elapsed_total
@@ -264,11 +270,9 @@ let pp_summary ~failure ?(show_anon = false) () : summary Fmt.t =
       (pp_summaries failure) summary.subtasks
   and pp_summaries failure ppf (summaries : summary list) =
     pf ppf "%a"
-      (option @@
-        pair (list ~sep:nop @@ cut ++ pp_summary false) (pp_summary failure))
-      (List.filter f summaries |> Util.unsnoc)
+      (list ~sep:nop @@ cut ++ pp_summary) (tag_failures failure summaries)
   in
-  pp_summary failure
+  fun ppf summary -> pp_summary ppf (summary, failure)
 
 let pp_state_out pp_x ppf (state : _ st_out) =
   let open Fmt in
