@@ -223,33 +223,33 @@ let std_setup cfg = group ~label:"setup" @@ of_list [
 (** Run the limitation checker. *)
 let std_check cfg = checker cfg "tests/assignment"
 
+(** Build something in the [tests/] directory with dune.
+    If [submission] is [false] (default), error output is hidden. *)
+let std_build1 cfg ?(submission = false) what =
+  ignore @@
+  dune cfg
+    ~options:(
+      subprocess_options ()
+        ~timeout:(P_run.timeout (timeout_for cfg `Build))
+        ~hide_stdout:(not submission) ~hide_stderr:(not submission)
+        ~error_message:Messages.(
+          if submission then submission_error else test_failure))
+    ~root:"tests/" "build" ~args:["--force"; what]
+
 (* Build the assignment library and test binary. *)
 let std_build cfg = group ~label:"build" @@ of_list [
   (* First, build only the student submission without referencing the tests
       or the solution, so that we can show the build output to the student
       and not leak test or solution code. *)
-  dune cfg
-    ~options:(
-      subprocess_options ()
-        ~timeout:(P_run.timeout (timeout_for cfg `Build))
-        ~error_message:Messages.submission_error)
-    ~root:"tests/" "build" ~args:["--force"; "assignment"]
-  |> ignore |> with_ ~label:"assignment";
+  std_build1 cfg ~submission:true "assignment" |> with_ ~label:"assignment";
 
   (* If there are build failures, the compiler sometimes prints source code
       of the tests or the solution to stderr, which is shown to the student.
       Therefore, drop output. If the student submission builds and matches the
       interface, this should never fail (and any failures are almost certainly
       our fault). *)
-  dune cfg
-    ~options:(
-      subprocess_options ()
-        ~timeout:(P_run.timeout (timeout_for cfg `Build))
-        ~hide_stdout:true ~hide_stderr:true
-        ~error_message:Messages.test_failure)
-    ~root:"tests/" "build" ~args:["--force"; "test"]
-  |> ignore |> with_ ~label:"test";
-  ]
+  std_build1 cfg ~submission:false "test" |> with_ ~label:"test";
+]
 
 (** Run the generated binary. *)
 let std_test cfg = group ~label:"test" @@ of_list [
