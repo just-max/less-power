@@ -112,13 +112,23 @@ let out_tree o t =
   Xmlm.output_doc_tree frag o t
 
 let map_tree f tree =
-  let rec map tree = match f tree with Data d -> Data d | El (tag, childs) -> El (tag, List.map map childs) in
+  let rec map tree =
+    match f tree with
+    | Data d -> Data d
+    | El (tag, childs) -> El (tag, List.map map childs)
+  in
   map tree
 
-(* currently unused *)
-let[@warning "-32"] map_tree_data f tree =
-  let rec map tree = match tree with Data d -> Data (f d) | El (tag, childs) -> El (tag, List.map map childs) in
+let map_tree_data f tree =
+  let rec map = function
+    | Data d -> Data (f d)
+    | El (tag, childs) -> El (tag, List.map map childs)
+  in
   map tree
+
+let rec tree_has_data = function
+  | Data _ -> true
+  | El (_, childs) -> List.exists tree_has_data childs
 
 let fold_tree_down f acc tree =
   let rec map acc tree =
@@ -254,10 +264,15 @@ let prettify_results ?(grading : grading option) ?(points_step_count = 1) fn =
   in
   map_xml fn (function[@warning "-4"]
     | El (((("", ("failure" | "error")) as name), attrs), content) ->
-        El ((name, keep_attribute_keys [ "type" ] attrs), content)
-    | El (((("", "testcase") as name), attrs), content) ->
-        let content = List.map (map_tree (function Data d -> Data (trim_message d) | v -> v)) content in
-        El ((name, attrs), content)
+        let content' =
+          if List.exists tree_has_data content then
+            List.map (map_tree_data trim_message) content
+          else
+            match List.assoc_opt ("", "message") attrs with
+              | None | Some "" -> []
+              | Some msg -> [Data msg]
+        in
+        El ((name, keep_attribute_keys [ "type" ] attrs), content')
     | El (((("", "testsuite") as name), attrs), content) as el ->
         let tests, _ =
           fold_tree_down
