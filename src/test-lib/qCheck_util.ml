@@ -92,6 +92,14 @@ let report_result = function
   | Ok _ -> true
   | Error e -> fail_report_notrace e
 
+(** Check a property against multiple, fixed inputs. *)
+let make_test_singles ?name ?(print : 'a QCheck2.Print.t option) xs prop =
+  let lift f x = f (x ()) in
+  let open QCheck2 in
+  Test.make ?name ?print:(Option.map lift print) ~count:(List.length xs)
+    Gen.(graft_corners (pure (fun () -> failwith "")) (List.map Fun.const xs) ())
+    (lift prop)
+
 (** Check a property against a fixed input. *)
 let make_test_single ?name ?print x prop =
-  QCheck2.Test.make (QCheck2.Gen.pure x) prop ~count:1 ~max_gen:1 ?name ?print
+  make_test_singles ?name ?print [ x ] prop
