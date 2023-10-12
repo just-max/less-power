@@ -18,6 +18,29 @@ Alternatively, the provided Docker image may be used:
 docker pull ghcr.io/just-max/less-power:main
 ```
 
+# Development
+
+To make changes to the framework, first clone this repository. Then add a local pin:
+
+```sh
+opam pin add less-power ~/path/to/less-power
+```
+
+While developing, use `dune` to build:
+
+```sh
+dune build       # regular build
+dune build @doc  # build docs
+dune build test  # run tests
+```
+
+To use your local changes while developing a programming exercise:
+
+```sh
+dune build @install                    # prepare for install
+opam upgrade --working-dir less-power  # make changes available
+```
+
 ## Deployment
 
 For running real programming courses, programming exercises built for the Less Power framework are best run with [Artemis](https://github.com/ls1intum/Artemis). Artemis is an interactive learning platform that handles student participation and provides CI-based automated testing.
