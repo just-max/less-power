@@ -1,10 +1,13 @@
+(* Part 1: Grading *)
+
 type 'a clamp = { min : 'a; max : 'a }
 
 let clamp range v = min range.max (max range.min v)
 let clamp_opt range v = match range with None -> v | Some range -> clamp range v
 
 type grading_result = { text : string; points : int; max_points : int }
-type tests = (string * bool) list
+type tests = (string * bool) list (* testsuite *)
+type testsuites = tests list
 
 type grading_criterion =
   | Passed of string
@@ -100,6 +103,56 @@ let group ?skip ?max_points title items = Group { title; max_points; items; skip
 
 let implies antecedent consequent = OneOf [Not antecedent; consequent]
 
+let evaluate_grading ?(points_step_count = 1) grading tests =
+  let indent s =
+    s |> String.split_on_char '\n'
+    |> List.map (function "" -> "" | s -> " " ^ s)
+    |> String.concat "\n"
+  in
+  let pointf points = float_of_int points /. float_of_int points_step_count in
+  let pprec =
+    match points_step_count with
+    | 1 -> format_of_string "%.0f"
+    | 2 -> format_of_string "%.1f"
+    | _ -> format_of_string "%.2f"
+  in
+  let rec collect (* tests *) = function
+  | Points { title; test_case; points; reason } -> (
+      let max_points = max points 0 in
+      match (eval_criterion tests test_case, reason tests test_case) with
+      | true, s -> { text = Printf.sprintf "%s: \t%(%f%)P \t%s\n" title pprec (pointf points) s; points; max_points }
+      | false, s ->
+          { text = Printf.sprintf "%s: \t(%(%f%)P) \t%s\n" title pprec (pointf points) s; points = 0; max_points }
+      | exception _ -> { text = ""; points = 0; max_points })
+  | Group { title; items; max_points; skip } ->
+      let results = List.map collect items in
+      let points = List.fold_left (fun a b -> a + b.points) 0 results |> clamp_opt max_points in
+      let points_str = match skip with None -> Printf.sprintf "%(%f%)P" pprec (pointf points) | Some s -> s in
+      {
+        text =
+          ((match (title, max_points) with
+            | "root", _ -> Printf.sprintf "Total: %s\n" points_str
+            | _, None -> Printf.sprintf "%s: \t%s\n" title points_str
+            | _, Some { min = 0; max = max_points } ->
+                Printf.sprintf "%s: \t%s \t(max %(%f%)P)\n" title points_str pprec (pointf max_points)
+            | _, Some max_points ->
+                Printf.sprintf "%s: \t%s \t(%(%f%)P - %(%f%)P)\n" title points_str pprec (pointf max_points.min) pprec
+                  (pointf max_points.max))
+          ^ if skip = None then results |> List.map (fun x -> indent x.text) |> String.concat "" else "");
+        points;
+        max_points = List.fold_left (fun a b -> a + b.max_points) 0 results |> clamp_opt max_points;
+      }
+  | Conditional { condition; content; _ } when eval_criterion tests condition -> collect content
+  | Conditional { content; message; _ } ->
+      let result = collect content in
+      let name = String.split_on_char '\n' result.text |> List.hd |> String.split_on_char '\t' |> List.hd in
+      { text = name ^ "\t" ^ message ^ "\n"; points = 0; max_points = result.max_points }
+  in
+  collect grading
+
+
+(* Part 2: XML *)
+
 type tree = El of Xmlm.tag * tree list | Data of string
 
 let in_tree i =
@@ -111,51 +164,40 @@ let out_tree o t =
   let frag = function El (tag, childs) -> `El (tag, childs) | Data d -> `Data d in
   Xmlm.output_doc_tree frag o t
 
-let map_tree f tree =
-  let rec map tree =
-    match f tree with
-    | Data d -> Data d
-    | El (tag, childs) -> El (tag, List.map map childs)
-  in
-  map tree
-
-let map_tree_data f tree =
-  let rec map = function
-    | Data d -> Data (f d)
-    | El (tag, childs) -> El (tag, List.map map childs)
-  in
-  map tree
-
-let rec tree_has_data = function
-  | Data _ -> true
-  | El (_, childs) -> List.exists tree_has_data childs
-
-let fold_tree_down f acc tree =
+type enter = NoEnter | Enter
+let fold_down f =
   let rec map acc tree =
     match f acc tree with
-    | acc, Data d -> (acc, Data d)
-    | acc, El (tag, childs) ->
-        let acc, childs =
-          List.fold_left
-            (fun (acc, childs) b ->
-              let acc, c = map acc b in
-              (acc, c :: childs))
-            (acc, []) childs
-        in
-        (acc, El (tag, List.rev childs))
+    | acc, (Data _ as tree), _ | acc, tree, NoEnter -> (acc, tree)
+    | acc, El (tag, childs), Enter ->
+        let acc, childs = map_forest acc childs in
+        (acc, El (tag, childs))
+  and map_forest acc childs =
+    let acc, childs =
+      List.fold_left
+        (fun (acc, childs) b ->
+          let acc, c = map acc b in
+          (acc, c :: childs))
+        (acc, []) childs
+    in
+    (acc, List.rev childs)
   in
-  map acc tree
+  map, map_forest
 
-let map_xml file f =
-  let inc = open_in_gen [ Open_binary; Open_creat; Open_rdonly ] 0 file in
-  let inx = Xmlm.make_input (`Channel inc) in
-  let dtd, tree = in_tree inx in
-  let _ = close_in inc in
-  let tree = map_tree f tree in
-  let outc = open_out_bin file in
-  let outx = Xmlm.make_output (`Channel outc) in
-  let _ = out_tree outx (dtd, tree) in
-  close_out outc
+let fold_tree_down f = fst (fold_down f)
+let fold_forest_down f = snd (fold_down f)
+
+let read_tree path =
+  let open Common.Ctx_util in
+  let< ch = In_channel.with_open_gen [ Open_binary; Open_creat; Open_rdonly ] 0 path in
+  let xml_in = Xmlm.make_input (`Channel ch) in
+  in_tree xml_in
+
+let write_tree dtd tree path =
+  let open Common.Ctx_util in
+  let< ch = Out_channel.with_open_bin path in
+  let xml_out = Xmlm.make_output (`Channel ch) in
+  out_tree xml_out (dtd, tree)
 
 let keep_attribute_keys (keep : string list) : Xmlm.attribute list -> Xmlm.attribute list =
   List.filter_map (function (("", attr), _) when List.mem attr keep -> Some (("", attr), "") | _ -> None)
@@ -169,89 +211,160 @@ let empty_node ?(attributes = []) label =
   (* empty data, otherwise xmlm doesn't (self-)close empty tags! *) (* TODO: is this still an issue? *)
   El ((("", label), attributes), [ Data "" ])
 
-(* TODO: The functionality for extracting test results and for evaluating a grading
-   scheme should be extracted to separate functions. The former would be useful
-   to grade test results distributed across multiple files. *)
-let prettify_results ?(grading : grading option) ?(points_step_count = 1) fn =
-  let trim_message d =
-    let d = Str.global_substitute (Str.regexp "\n+\\(No backtrace.\\)?$") (Fun.const "\n") d in
-    String.trim d
-  in
-  let indent s =
-    s |> String.split_on_char '\n' |> List.map (fun s -> if s = "" then "" else " " ^ s) |> String.concat "\n"
-  in
-  let rec map2' f l1 l2 fb1 fb2 =
-    match (l1, l2) with
-    | [], [] -> []
-    | [], a2 :: l2 -> f fb1 a2 :: map2' f l1 l2 fb1 fb2
-    | a1 :: l1, [] -> f a1 fb2 :: map2' f l1 l2 fb1 fb2
-    | a1 :: l1, a2 :: l2 -> f a1 a2 :: map2' f l1 l2 fb1 fb2
-  in
-  let rec drop_last = function [] | [ _ ] -> [] | x :: xs -> x :: drop_last xs in
-  let align_tabs text =
-    let lines = text |> String.split_on_char '\n' |> List.map (String.split_on_char '\t') in
-    let indents =
-      lines |> List.map (List.map String.length) |> List.fold_left (fun acc v -> map2' max acc (drop_last v) 0 0) []
+let trim_message d =
+  let d = Str.global_substitute (Str.regexp "\n+\\(No backtrace.\\)?$") (Fun.const "\n") d in
+  String.trim d
+
+
+let extract_cleanup_tree : tree -> testsuites * tree =
+  (* failure/error nodes: strip some unnecessary noise *)
+  let message_node name attrs children =
+    let f has_data = function
+      | Data d -> true, Data (trim_message d), Enter
+      | El _ as t -> has_data, t, Enter
     in
-    lines
-    |> List.map (fun l ->
-           let len = List.length l in
-           List.mapi
-             (fun i str -> if i = len - 1 then str else str ^ String.make (List.nth indents i - String.length str) ' ')
-             l)
-    |> List.map (String.concat "")
-    |> String.concat "\n"
+    let has_data, tree_content = fold_forest_down f false children in
+    let new_content =
+      if has_data then tree_content
+      else
+        match List.assoc_opt ("", "message") attrs with
+          | None | Some "" -> []
+          | Some msg -> [Data msg]
+    in
+    El ((name, keep_attribute_keys [ "type" ] attrs), new_content)
   in
-  let pointf points = float_of_int points /. float_of_int points_step_count in
-  let mk_points count passed =
-    List.init count (fun n ->
-        El
-          ( (("", "testcase"), [ (("", "name"), "points:" ^ string_of_int n) ] @ std_attrs_testcase),
-            if n < passed then [] else [ empty_node ~attributes:std_attrs_failure "failure" ] ))
+
+  (* testcase nodes: return [Some (name, passed)] (if a name is found) *)
+  let testcase attrs children =
+    let f passed = function[@warning "-4"]
+      | El (((("", ("failure" | "error")) as name), attrs), children) ->
+          false, message_node name attrs children, NoEnter
+      | t -> passed, t, Enter
+    in
+    let passed, children' = fold_forest_down f true children in
+    let test =
+      List.assoc_opt ("", "name") attrs
+      |> Option.map (fun name -> name, passed)
+    in
+    test, children'
   in
-  let pprec =
-    match points_step_count with
-    | 1 -> format_of_string "%.0f"
-    | 2 -> format_of_string "%.1f"
-    | _ -> format_of_string "%.2f"
+
+  (* testsuite node: extract (reversed) list of tests, cleanup *)
+  let testsuite node =
+    let f tests = function[@warning "-4"]
+      | El ((("", "testcase"), attrs as tag), children) ->
+          let test, children' = testcase attrs children in
+          (Option.to_list test @ tests), El (tag, children'), NoEnter
+      | El ((("", ("system-out" | "system-err")), _ as tag), _) ->
+          tests, El (tag, []), NoEnter
+      | t -> tests, t, Enter
+    in
+    fold_tree_down f [] node
   in
-  let rec collect_tests tests = function
-    | Points { title; test_case; points; reason } -> (
-        let max_points = max points 0 in
-        match (eval_criterion tests test_case, reason tests test_case) with
-        | true, s -> { text = Printf.sprintf "%s: \t%(%f%)P \t%s\n" title pprec (pointf points) s; points; max_points }
-        | false, s ->
-            { text = Printf.sprintf "%s: \t(%(%f%)P) \t%s\n" title pprec (pointf points) s; points = 0; max_points }
-        | exception _ -> { text = ""; points = 0; max_points })
-    | Group { title; items; max_points; skip } ->
-        let results = List.map (collect_tests tests) items in
-        let points = List.fold_left (fun a b -> a + b.points) 0 results |> clamp_opt max_points in
-        let points_str = match skip with None -> Printf.sprintf "%(%f%)P" pprec (pointf points) | Some s -> s in
-        {
-          text =
-            ((match (title, max_points) with
-             | "root", _ -> Printf.sprintf "Total: %s\n" points_str
-             | _, None -> Printf.sprintf "%s: \t%s\n" title points_str
-             | _, Some { min = 0; max = max_points } ->
-                 Printf.sprintf "%s: \t%s \t(max %(%f%)P)\n" title points_str pprec (pointf max_points)
-             | _, Some max_points ->
-                 Printf.sprintf "%s: \t%s \t(%(%f%)P - %(%f%)P)\n" title points_str pprec (pointf max_points.min) pprec
-                   (pointf max_points.max))
-            ^ if skip = None then results |> List.map (fun x -> indent x.text) |> String.concat "" else "");
-          points;
-          max_points = List.fold_left (fun a b -> a + b.max_points) 0 results |> clamp_opt max_points;
-        }
-    | Conditional { condition; content; _ } when eval_criterion tests condition -> collect_tests tests content
-    | Conditional { content; message; _ } ->
-        let result = collect_tests tests content in
-        let name = String.split_on_char '\n' result.text |> List.hd |> String.split_on_char '\t' |> List.hd in
-        { text = name ^ "\t" ^ message ^ "\n"; points = 0; max_points = result.max_points }
+
+  (* extract all test suites *)
+  let testsuites root =
+    let f suites = function[@warning "-4"]
+      | El ((("", "testsuite"), _), _) as node ->
+          let suite, node' = testsuite node in
+          suite :: suites, node', NoEnter
+      | t -> suites, t, Enter
+    in
+    fold_tree_down f [] root
   in
-  let analyze_tests tests =
+
+  testsuites
+
+let extract_cleanup_file ?cleanup_to path =
+  let dtd, tree = read_tree path in
+  let suites, tree' = extract_cleanup_tree tree in
+  (Option.iter (write_tree dtd tree') cleanup_to);
+  suites
+
+
+let extract_files ?(cleanup = true) : string list -> testsuites =
+  List.concat_map (fun path ->
+      extract_cleanup_file path
+        ?cleanup_to:(if cleanup then Some path else None))
+
+let cleanup_files paths =
+  extract_files ~cleanup:true paths |> ignore
+
+let grade_files ?points_step_count ?cleanup grading paths =
+  extract_files ?cleanup paths |> List.concat
+  |> evaluate_grading ?points_step_count grading
+
+
+let align_tabs text =
+  let[@tail_mod_cons] rec drop_last = function
+    | [] | [ _ ] -> []
+    | x :: xs -> x :: drop_last xs
+  in
+  let last xs = match List.rev xs with [] -> None | x :: _ -> Some x in
+  let[@tail_mod_cons] rec combine ?fb1 ?fb2 f xs ys =
+    match xs, fb1, ys, fb2 with
+    | x :: xs, _, y :: ys, _ -> f x y :: combine ?fb1 ?fb2 f xs ys
+    | [], Some fb, _, _ -> List.map (fun y -> f fb y) ys
+    | _, _, [], Some fb -> List.map (fun x -> f x fb) xs
+    | _ -> []
+  in
+  let combine_fb f l1 l2 fb1 fb2 = combine ~fb1 ~fb2 f l1 l2 in
+  let lines =
+    text |> String.split_on_char '\n'
+    |> List.map (String.split_on_char '\t')
+  in
+  let indents =
+    lines |> List.map (List.map String.length)
+    |> List.fold_left (fun acc v -> combine_fb max acc (drop_last v) 0 0) []
+  in
+  let align_line line =
+    let f str indent = str ^ String.make (indent - String.length str) ' ' in
+    combine f ~fb2:0 (drop_last line) indents @ Option.to_list (last line)
+  in
+  lines |> List.map align_line
+  |> List.map (String.concat "") |> String.concat "\n"
+
+let mk_points count ~passed =
+  let open Junit.Testcase in
+  List.init count @@ fun n ->
+      let name = Printf.sprintf "points:%d" n in
+      let mk = if n < passed then pass else failure "" ~typ:"points" in
+      mk ~name ~classname:"grading" ~time:0.
+
+let testsuite_of_result result =
+  let open Junit in
+  let points = mk_points result.max_points ~passed:result.points in
+  let feedback =
+    Testcase.failure result.text ~name:"feedback"
+      ~typ:"feedback" ~classname:"grading" ~time:0.
+  in
+  let open Testsuite in
+  make ~name:"grading" ()
+  |> add_testcases (feedback :: points)
+
+let write_result result path =
+  let text = align_tabs result.text in
+  List.iter prerr_endline [ String.make 78 '='; text; String.make 78 '-' ];
+  let ts = testsuite_of_result { result with text } in
+  Junit.to_file (Junit.make [ts]) path
+
+let grade_to_file ?points_step_count ?cleanup ~grading_to grading paths =
+  let result = grade_files ?points_step_count ?cleanup grading paths in
+  write_result result grading_to
+
+(* compat *)
+let prettify_results ?grading path =
+  match grading with
+  | None -> cleanup_files [path]
+  | Some grading ->
+      grade_to_file grading [path] ~cleanup:true
+        ~grading_to:Filename.(concat (basename path) "grading.xml")
+
+(*   let analyze_tests tests =
     match grading with
     | None -> []
     | Some grading ->
-        let { text; points; max_points } = collect_tests tests grading in
+        let { text; points; max_points } = evaluate_grading ?points_step_count tests grading in
         let text = align_tabs text in
         Printf.printf
           "==============================================================================\n\
@@ -262,34 +375,4 @@ let prettify_results ?(grading : grading option) ?(points_step_count = 1) fn =
           [ El ((("", "failure"), std_attrs_failure), [ Data text ]) ])
         :: mk_points max_points points
   in
-  map_xml fn (function[@warning "-4"]
-    | El (((("", ("failure" | "error")) as name), attrs), content) ->
-        let content' =
-          if List.exists tree_has_data content then
-            List.map (map_tree_data trim_message) content
-          else
-            match List.assoc_opt ("", "message") attrs with
-              | None | Some "" -> []
-              | Some msg -> [Data msg]
-        in
-        El ((name, keep_attribute_keys [ "type" ] attrs), content')
-    | El (((("", "testsuite") as name), attrs), content) as el ->
-        let tests, _ =
-          fold_tree_down
-            (fun a b ->
-              match b with
-              | El ((("", "testcase"), attrs), children) -> (
-                  match
-                    ( List.find_map (function ("", "name"), v -> Some v | _ -> None) attrs,
-                      not (List.exists (function El (_, _) -> true | _ -> false) children) )
-                  with
-                  | Some name, passed -> ((name, passed) :: a, b)
-                  | _ -> (a, b))
-              | _ -> (a, b))
-            [] el
-        in
-        El ((name, attrs),
-          List.filter (function El (((_, ("system-out" | "system-err")), _), _) -> false | _ -> true) content
-          @ analyze_tests tests
-          @ [ empty_node "system-out" ; empty_node "system-err" ])
-    | v -> v)
+ *)
