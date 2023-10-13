@@ -55,9 +55,11 @@ type grading_criterion =
 val implies : grading_criterion -> grading_criterion -> grading_criterion
 (** Logical implication: [implies a c = OneOf [Not a; c]]. *)
 
-(* val mk_indent : int -> string *)
+val evaluate_criterion : tests -> grading_criterion -> bool
+(** Evaluate the logical formula over the assignment
+    of test names to boolean pass/fail values. *)
+
 val string_of_grading_criterion : ?indent:int -> grading_criterion -> string
-(* val eval_criterion : tests -> grading_criterion -> bool *)
 
 (** Grading scheme. Defines how to assign a numeric grade for a given set of test results. *)
 type grading =

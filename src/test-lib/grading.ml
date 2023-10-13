@@ -33,17 +33,17 @@ let[@warning "-32"] is_fixed_query query =
 
 let parse_name = String.split_on_char ':'
 
-let rec eval_criterion (tests : tests) = function
+let rec evaluate_criterion (tests : tests) = function
   | Passed query ->
       let q = parse_name query in
       let matched = List.filter (fun (test, _) -> matches_test ~query:q (parse_name test)) tests in
       if matched = [] then raise Not_found; (* at least one test needs to match *)
       List.for_all snd matched
   | Failed query ->
-      eval_criterion (List.map (fun (test, ok) -> (test, not ok)) tests) (Passed query)
-  | Not crit -> eval_criterion tests crit |> not
-  | OneOf crits -> List.exists (eval_criterion tests) crits
-  | AllOf crits -> List.for_all (eval_criterion tests) crits
+      evaluate_criterion (List.map (fun (test, ok) -> (test, not ok)) tests) (Passed query)
+  | Not crit -> evaluate_criterion tests crit |> not
+  | OneOf crits -> List.exists (evaluate_criterion tests) crits
+  | AllOf crits -> List.for_all (evaluate_criterion tests) crits
   | Constant const -> const
 
 let mk_indent n = String.make n ' '
@@ -70,16 +70,16 @@ exception No_reason
 
 let points ?(skip = Constant false) ?(reason = fun _ _ -> None) ?penalty title points test_case =
   let reason t c =
-    if eval_criterion t skip then raise No_reason else
+    if evaluate_criterion t skip then raise No_reason else
     match (penalty, points < 0) with
     | Some false, _ | None, false -> (
           match reason t c with
           | Some s -> s
-          | None -> if eval_criterion t c then "PASS" else "FAIL")
+          | None -> if evaluate_criterion t c then "PASS" else "FAIL")
     | Some true, _ | None, true -> (
           match reason t c with
           | Some s -> s
-          | None -> if eval_criterion t c then "PENALTY" else raise No_reason)
+          | None -> if evaluate_criterion t c then "PENALTY" else raise No_reason)
   in
   Points { title; points; test_case; reason }
 
@@ -90,7 +90,7 @@ let assertion ?(message = "ASSERTION FAILED") ?(title = "assertion") points test
       points;
       test_case = Not test_case; (* fail the assertion if the test case DOES NOT pass *)
       reason = (fun t _ ->
-        if eval_criterion t test_case then "PASS"
+        if evaluate_criterion t test_case then "PASS"
         else "\n\n" ^ message ^ ":\n" ^ string_of_grading_criterion test_case ^ "\n")
     }
 
@@ -119,7 +119,7 @@ let evaluate_grading ?(points_step_count = 1) grading tests =
   let rec collect (* tests *) = function
   | Points { title; test_case; points; reason } -> (
       let max_points = max points 0 in
-      match (eval_criterion tests test_case, reason tests test_case) with
+      match (evaluate_criterion tests test_case, reason tests test_case) with
       | true, s -> { text = Printf.sprintf "%s: \t%(%f%)P \t%s\n" title pprec (pointf points) s; points; max_points }
       | false, s ->
           { text = Printf.sprintf "%s: \t(%(%f%)P) \t%s\n" title pprec (pointf points) s; points = 0; max_points }
@@ -142,7 +142,7 @@ let evaluate_grading ?(points_step_count = 1) grading tests =
         points;
         max_points = List.fold_left (fun a b -> a + b.max_points) 0 results |> clamp_opt max_points;
       }
-  | Conditional { condition; content; _ } when eval_criterion tests condition -> collect content
+  | Conditional { condition; content; _ } when evaluate_criterion tests condition -> collect content
   | Conditional { content; message; _ } ->
       let result = collect content in
       let name = String.split_on_char '\n' result.text |> List.hd |> String.split_on_char '\t' |> List.hd in
