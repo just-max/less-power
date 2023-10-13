@@ -3,6 +3,7 @@
 open Task
 open Common
 open Ctx_util
+open Util
 
 let f = Printf.sprintf
 
@@ -130,8 +131,8 @@ let checker cfg ?prohibited ?(limit = 3) ?check1 ?check p =
         failf "%a" buffer buff
 
 (** Run a process as a task *)
-let subprocess_run ?timeout ?args command =
-  task1 @@ fun _ -> P_run.p_run ?timeout ?args command
+let subprocess_run ?timeout ?args ?env command =
+  task1 @@ fun _ -> P_run.p_run ?timeout ?args ?env command
 
 (** Handle the result of a subprocess task. *)
 let subprocess_result ?hide_stdout ?hide_stderr
@@ -167,8 +168,8 @@ let subprocess_options ?timeout ?(hide_stdout = false) ?(hide_stderr = false)
     ?error_message ?(check_status = true) ?(dump_output = true) () =
   { timeout; hide_stdout; hide_stderr; error_message; check_status; dump_output }
 
-let subprocess cfg ?(options = subprocess_options ()) ?args command =
-  let run = subprocess_run ?timeout:options.timeout ?args command in
+let subprocess cfg ?(options = subprocess_options ()) ?args ?env command =
+  let run = subprocess_run ?timeout:options.timeout ?args ?env command in
   let result =
     subprocess_result ()
       ~hide_stdout:(options.hide_stdout && cfg.safe)
@@ -180,8 +181,8 @@ let subprocess cfg ?(options = subprocess_options ()) ?args command =
   in
   group (run |> then_ result)
 
-let dune cfg ?options ~root ?(args = []) cmd =
-  subprocess cfg ?options "opam"
+let dune cfg ?options ~root ?(args = []) ?env cmd =
+  subprocess cfg ?options "opam" ?env
     ~args:([
         "exec"; "--"; "dune"; cmd;
         "--no-print-directory";
@@ -194,7 +195,12 @@ let timeout_for cfg = function
   | `Probe -> cfg.probe_timeout
 
 
-(** {1 Standard tasks} *)
+(** {1 Standard tasks}
+
+    These are high-level tasks built upon the primitives defined above.
+    They work with the recommended layout of tests, submission and sample
+    solution. However, the low-level tasks defined above can also be used
+    as needed. *)
 
 let std_test_report_dir = "test-reports/"
 
@@ -225,18 +231,36 @@ let std_check cfg = checker cfg "tests/assignment"
 
 (** Build something in the [tests/] directory with dune.
     If [submission] is [false] (default), error output is hidden. *)
-let std_build1 cfg ?(submission = false) what =
-  ignore @@
-  dune cfg
-    ~options:(
-      subprocess_options ()
-        ~timeout:(P_run.timeout (timeout_for cfg `Build))
-        ~hide_stdout:(not submission) ~hide_stderr:(not submission)
-        ~error_message:Messages.(
-          if submission then submission_error else test_failure))
-    ~root:"tests/" "build" ~args:["--force"; what]
+let std_build1 cfg ?(submission = false) ?env what =
+  let options =
+    subprocess_options ()
+      ~timeout:(P_run.timeout (timeout_for cfg `Build))
+      ~hide_stdout:(not submission) ~hide_stderr:(not submission)
+      ~error_message:Messages.(
+        if submission then submission_error else test_failure)
+  in
+  dune cfg ~options ~root:"tests/"
+    "build" ~args:["--force"; what] ?env
+  |> ignore
 
-(* Build the assignment library and test binary. *)
+(** Run something in the [tests/] directory with [dune exec].
+
+    This task passes the [--no-build] flag to dune. As such:
+    - The executable must be built before
+      running this task (e.g. with {!std_build1}).
+    - There is no risk of showing the build output to the student.
+
+    If [phase] is given, sets a timeout. *)
+let std_exec1 cfg ?phase ?(args = []) ?env what =
+  let options =
+    subprocess_options ()
+      ?timeout:(phase |> Option.map (timeout_for cfg %> P_run.timeout))
+  in
+  dune cfg ~options ~root:"tests/"
+    "exec" ~args:(["--no-build"; "--"; what] @ args) ?env
+  |> ignore
+
+(** Build the assignment library and test binary. *)
 let std_build cfg = group ~label:"build" @@ of_list [
   (* First, build only the student submission without referencing the tests
       or the solution, so that we can show the build output to the student
@@ -251,35 +275,34 @@ let std_build cfg = group ~label:"build" @@ of_list [
   std_build1 cfg ~submission:false "test" |> with_ ~label:"test";
 ]
 
-(** Run the generated binary. *)
-let std_test cfg = group ~label:"test" @@ of_list [
-  (* The test executable is configured to exit immediately if no arguments are passed.
-      We use this to check that the top level code of the submission does not
-      contain any long-running code. If it does, there's no point in running the tests,
-      since the significantly longer test timeout will just kill them.
-      We don't want to prohibit top-level code entirely, since it would prevent
-      things like [let impl0 = impl 0] *)
-  dune cfg
-    ~options:(
-      subprocess_options ()
-        ~timeout:(P_run.timeout (timeout_for cfg `Probe)))
-    ~root:"tests/" "exec" ~args:["--no-build"; "--"; "test/test.exe"]
-  |> ignore |> with_ ~label:"top_level";
-  (* note: the 'probe' name here is unrelated to the
-      partial signature checking probe below *)
+(** Run a test executable in the standard setup. See the note about building
+    first in {!std_exec1}. Assumes the test executable is configured to exit
+    immediately if no command line arguments are passed.
+    We use this to check that the top level code of the submission does not
+    contain any long-running code. If it does, there's no point in running the
+    tests, since the significantly longer test timeout will just kill them.
+    We don't want to prohibit top-level code entirely, since it would prevent
+    things like [let impl0 = impl 0].
+
+    Thus, first runs the given executable without any arguments, then runs it a
+    second time, passing the given path as the output JUnit file. *)
+let std_exec_test cfg ?env ~output_junit_file what = group @@ of_list [
+  (* Note: the 'probe' name here is unrelated to the partial signature
+     checking probe below, and refers to the top-level check *)
+  std_exec1 cfg ~phase:`Probe ?env what |> with_ ~label:"top_level";
 
   (* run the test! *)
-  dune cfg
-    ~options:(
-      subprocess_options ()
-        ~timeout:(P_run.timeout (timeout_for cfg `Test)))
-    ~root:"tests/" "exec"
-    ~args:[
-      "--no-build"; "--"; "test/test.exe";
-      "-output-junit-file"; "test-reports/results.xml"]
-  |> ignore |> with_ ~label:"run";
+  std_exec1 cfg ~phase:`Test ?env what
+    ~args:["-output-junit-file"; output_junit_file]
+  |> with_ ~label:"run";
 ]
 
+(** As {!std_exec_test}, fixed to [test/test.exe]
+    with output to [test-reports/results.xml]. *)
+let std_test cfg =
+  std_exec_test cfg "test/test.exe"
+    ~output_junit_file:"test-reports/results.xml"
+  |> with_ ~label:"test"
 
 (** {1 Probe-related tasks (partial type correctness checking)} *)
 

@@ -82,10 +82,28 @@ let pp_result ?(hide_stdout = false) ?(hide_stderr = false) ?command_line ppf r 
     (option (cut ++ pp_output "STDERR"))
     (if hide_stderr then None else Some r.stderr)
 
+let build_env =
+  let f (k, v) =
+    if String.contains k '=' then
+      raise (Invalid_argument "illegal '=' in environment variable name")
+    else if String.contains k '\000' then
+      raise (Invalid_argument "illegal '\\000' in environment variable name")
+    else if k = "" then
+      raise (Invalid_argument "empty environment variable name")
+    else String.concat "=" [k; v]
+  in
+  List.map f
+
 (** Send the [input] to [command] with the given [args].
     Note: uses temporary files provided by {!Filename}. *)
-let p_run ?timeout:timeout_desc ?input ?(args = []) command =
+let p_run ?timeout:timeout_desc ?input ?(args = []) ?(env = []) command =
   let open Ctx_util in
+
+  let env =
+    Array.append
+      (Unix.environment ())
+      (Array.of_list @@ build_env env)
+  in
 
   let< stdout_path = temp_file command "stdout" in
   let< stderr_path = temp_file command "stderr" in
@@ -105,8 +123,8 @@ let p_run ?timeout:timeout_desc ?input ?(args = []) command =
     let t0 = Mtime_clock.counter () in
 
     let pid =
-      Unix.create_process command
-        (Array.of_list (command :: args))
+      Unix.create_process_env command
+        (Array.of_list (command :: args)) env
         stdin_fd stdout_fd stderr_fd
     in
 
