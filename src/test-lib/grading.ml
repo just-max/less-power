@@ -202,15 +202,6 @@ let write_tree dtd tree path =
 let keep_attribute_keys (keep : string list) : Xmlm.attribute list -> Xmlm.attribute list =
   List.filter_map (function (("", attr), _) when List.mem attr keep -> Some (("", attr), "") | _ -> None)
 
-let std_attrs_testcase : Xmlm.attribute list =
-  [ ("", "classname"), "" ; ("", "time"), "0.0" ]
-let std_attrs_failure : Xmlm.attribute list =
-  [ ("", "type"), "" ]
-
-let empty_node ?(attributes = []) label =
-  (* empty data, otherwise xmlm doesn't (self-)close empty tags! *) (* TODO: is this still an issue? *)
-  El ((("", label), attributes), [ Data "" ])
-
 let trim_message d =
   let d = Str.global_substitute (Str.regexp "\n+\\(No backtrace.\\)?$") (Fun.const "\n") d in
   String.trim d
