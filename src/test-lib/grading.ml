@@ -343,10 +343,12 @@ let grade_files_to ?points_step_count ?cleanup ~grading_to grading paths =
   let result = grade_files ?points_step_count ?cleanup grading paths in
   write_result result grading_to
 
+let grade_cleanup_files_to ?points_step_count ~grading_to ?grading =
+  match grading with
+  | None -> cleanup_files
+  | Some g -> grade_files_to ?points_step_count ~cleanup:true ~grading_to g
+
 (* compat *)
 let prettify_results ?grading path =
-  match grading with
-  | None -> cleanup_files [path]
-  | Some grading ->
-      grade_files_to grading [path] ~cleanup:true
-        ~grading_to:Filename.(concat (basename path) "grading.xml")
+  grade_cleanup_files_to [path] ?grading
+    ~grading_to:Filename.(concat (basename path) "grading.xml")

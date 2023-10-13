@@ -196,9 +196,13 @@ val grade_files_to :
 (** Combines {!grade_files} and {!write_result},
     writing the result to [grading_to]. *)
 
-val[@deprecated "use cleanup_files or grade_files_to"] prettify_results :
+val grade_cleanup_files_to :
+  ?points_step_count:int ->
+  ?cleanup:bool -> grading_to:string -> ?grading:grading -> string list -> unit
+(** If [grading] is [None], as per {!cleanup_files} with [~cleanup:true].
+    Otherwise, as per {!grade_files_to}, with [~cleanup:true]. *)
+
+val[@deprecated "use grade_cleanup_files_to"] prettify_results :
   ?grading:grading -> string -> unit
-(** If [grading] is [None], as per {!cleanup_file} with the output
-    written back to the same file. Otherwise, as per [grade_files_to],
-    with [~cleanup:true] and with grading written to [grading.xml] in
-    the same directory. *)
+(** As per {!grade_cleanup_files_to} with a single path and with grading
+    written to [grading.xml] in the same directory. *)
