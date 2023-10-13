@@ -1,4 +1,8 @@
-(** Provide a grade from a list of passed/failed tests and a grading scheme. *)
+(** Provide a grade from a list of passed/failed tests and a grading scheme.
+    Provides functionality to load tests from a JUnit XML file,
+    tidy them up, and write the grading result back to a JUnit XML file. *)
+
+(** {1 Grading} *)
 
 type 'a clamp = { min : 'a; max : 'a }
 (** A range of values, inclusive. *)
@@ -15,6 +19,9 @@ type grading_result = { text : string; points : int; max_points : int }
 type tests = (string * bool) list
 (** Pairs of [test_name, passed]. *)
 
+type testsuites = tests list
+(** A group of testsuites (e.g. as extracted from a single JUnit XML file) *)
+
 (** Logical formulas over test results. *)
 type grading_criterion =
   | Passed of string  (** Did the given test pass? *)
@@ -30,21 +37,23 @@ type grading_criterion =
   - Star as name, e.g. [a:*:c]: matches any name in place of [*],
       e.g. [a:mmm:c].
 
-  Both may be combined, e.g. [a:*:c:] matches [a:mm:c] and [a:nn:c:d].
+  Both may be combined, e.g. [a:*:c:] matches [a:mm:c] and [a:nn:c:d]. A name
+  is considered to be any string that does not contain a [:]. You are
+  responsible for enforcing this convention yourself, it is not enforced
+  by OUnit, for example.
 
-  For a [Passed] value to evaluate to true, **all** tests matched by the
+  For a [Passed] value to evaluate to true, {i all} tests matched by the
   wildcard need to pass, and for [Failed] all need to fail. If you want the
-  inverse behavior ( **at least** one matched test needs to pass/fail),
+  inverse behavior ({i at least} one matched test needs to pass/fail),
   use [Not]: [Not (Failed "a:*:")] means "not all matched tests failed",
   which is logically equivalent to "at least one matched test passed".
 
-  It is in error to reference a test that does not exist.
+  It is an error to reference a test that does not exist.
   In the presence of wildcards, at least one test must match.
 *)
 
 val implies : grading_criterion -> grading_criterion -> grading_criterion
 (** Logical implication: [implies a c = OneOf [Not a; c]]. *)
-
 
 (* val mk_indent : int -> string *)
 val string_of_grading_criterion : ?indent:int -> grading_criterion -> string
@@ -143,8 +152,53 @@ val group :
   ?skip:string -> ?max_points:int clamp -> string -> grading list -> grading
 (** Wrapper for {{!type-grading.Group}[Group]}. *)
 
-(** Main entry point: [prettify_results ~grading file_name] reads the JUnit XML
-    file in [file_name], evalutes the given [grading] scheme and writes the result
-    back to the same file. *)
-val prettify_results :
-  ?grading:grading -> ?points_step_count:int -> string -> unit
+val evaluate_grading :
+  ?points_step_count:int -> grading -> tests -> grading_result
+(** Calculates a grade from the description of the
+    grading and the list of passed/failed tests. *)
+
+(** {1 Reading and writing}
+
+    Functionality to read tests from JUnit XML files, cleanup the files,
+    and write evaluated grading to a JUnix XML files. *)
+
+(** {2 Reading and cleanup} *)
+
+val extract_cleanup_file : ?cleanup_to:string -> string -> testsuites
+(** Extract the list of testsuites from a JUnit XML file. If [cleanup_to] is
+    given, write the result of tidying up the result back to disk. The paths
+    may be identical, in which case the original file is overwritten. *)
+
+val extract_cleanup_files : ?cleanup:bool -> string list -> testsuites
+(** As {!extract_cleanup_file} but for a list of files. The list of testsuites
+    from each file are concatenated to produce a single list of testsuites.
+    If [cleanup] is [true] (default), then overwrite each file with
+    the cleaned up result, otherwise don't clean up. *)
+
+val cleanup_files : string list -> unit
+(** As {!extract_cleanup_files} with [~cleanup:true], ignoring the result. *)
+
+val grade_files :
+  ?points_step_count:int ->
+  ?cleanup:bool -> grading -> string list -> grading_result
+(** Combines {!extract_cleanup_files} and {!evaluate_grading}. *)
+
+(** {2 Writing} *)
+
+val write_result : grading_result -> string -> unit
+(** Write a grading result to file. *)
+
+(** {2 Helpers} *)
+
+val grade_files_to :
+  ?points_step_count:int ->
+  ?cleanup:bool -> grading_to:string -> grading -> string list -> unit
+(** Combines {!grade_files} and {!write_result},
+    writing the result to [grading_to]. *)
+
+val[@deprecated "use cleanup_files or grade_files_to"] prettify_results :
+  ?grading:grading -> string -> unit
+(** If [grading] is [None], as per {!cleanup_file} with the output
+    written back to the same file. Otherwise, as per [grade_files_to],
+    with [~cleanup:true] and with grading written to [grading.xml] in
+    the same directory. *)

@@ -281,17 +281,16 @@ let extract_cleanup_file ?cleanup_to path =
   (Option.iter (write_tree dtd tree') cleanup_to);
   suites
 
-
-let extract_files ?(cleanup = true) : string list -> testsuites =
+let extract_cleanup_files ?(cleanup = true) : string list -> testsuites =
   List.concat_map (fun path ->
       extract_cleanup_file path
         ?cleanup_to:(if cleanup then Some path else None))
 
 let cleanup_files paths =
-  extract_files ~cleanup:true paths |> ignore
+  extract_cleanup_files ~cleanup:true paths |> ignore
 
 let grade_files ?points_step_count ?cleanup grading paths =
-  extract_files ?cleanup paths |> List.concat
+  extract_cleanup_files ?cleanup paths |> List.concat
   |> evaluate_grading ?points_step_count grading
 
 
@@ -344,11 +343,12 @@ let testsuite_of_result result =
 
 let write_result result path =
   let text = align_tabs result.text in
+  (* TODO: make error output configurable? *)
   List.iter prerr_endline [ String.make 78 '='; text; String.make 78 '-' ];
   let ts = testsuite_of_result { result with text } in
   Junit.to_file (Junit.make [ts]) path
 
-let grade_to_file ?points_step_count ?cleanup ~grading_to grading paths =
+let grade_files_to ?points_step_count ?cleanup ~grading_to grading paths =
   let result = grade_files ?points_step_count ?cleanup grading paths in
   write_result result grading_to
 
@@ -357,22 +357,5 @@ let prettify_results ?grading path =
   match grading with
   | None -> cleanup_files [path]
   | Some grading ->
-      grade_to_file grading [path] ~cleanup:true
+      grade_files_to grading [path] ~cleanup:true
         ~grading_to:Filename.(concat (basename path) "grading.xml")
-
-(*   let analyze_tests tests =
-    match grading with
-    | None -> []
-    | Some grading ->
-        let { text; points; max_points } = evaluate_grading ?points_step_count tests grading in
-        let text = align_tabs text in
-        Printf.printf
-          "==============================================================================\n\
-           %s\n\
-           ------------------------------------------------------------------------------\n"
-          text;
-        El ((("", "testcase"), [ (("", "name"), "feedback") ] @ std_attrs_testcase),
-          [ El ((("", "failure"), std_attrs_failure), [ Data text ]) ])
-        :: mk_points max_points points
-  in
- *)
