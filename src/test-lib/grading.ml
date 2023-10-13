@@ -103,6 +103,9 @@ let group ?skip ?max_points title items = Group { title; max_points; items; skip
 
 let implies antecedent consequent = OneOf [Not antecedent; consequent]
 
+let any_passed test_case = Not (Failed test_case)
+let any_failed test_case = Not (Passed test_case)
+
 let evaluate_grading ?(points_step_count = 1) grading tests =
   let indent s =
     s |> String.split_on_char '\n'

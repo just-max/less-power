@@ -47,6 +47,7 @@ type grading_criterion =
   inverse behavior ({i at least} one matched test needs to pass/fail),
   use [Not]: [Not (Failed "a:*:")] means "not all matched tests failed",
   which is logically equivalent to "at least one matched test passed".
+  For this, you can use {!any_passed} and {!any_failed}.
 
   It is an error to reference a test that does not exist.
   In the presence of wildcards, at least one test must match.
@@ -54,6 +55,15 @@ type grading_criterion =
 
 val implies : grading_criterion -> grading_criterion -> grading_criterion
 (** Logical implication: [implies a c = OneOf [Not a; c]]. *)
+
+val any_passed : string -> grading_criterion
+(** If a test case contains a wildcard, the behavior is to require that all
+    tests that match pass (or that all tests fail). Use [any_passed]
+    (and [any_failed]) to instead check that at least one test that matches
+    passed (or at least one test that matches failed). *)
+
+val any_failed : string -> grading_criterion
+(** See {!any_passed}. *)
 
 val evaluate_criterion : tests -> grading_criterion -> bool
 (** Evaluate the logical formula over the assignment
