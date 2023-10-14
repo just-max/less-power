@@ -211,7 +211,7 @@ val grade_files_to :
 val grade_cleanup_files_to :
   ?points_step_count:int ->
   grading_to:string -> ?grading:grading -> string list -> unit
-(** If [grading] is [None], as per {!cleanup_files} with [~cleanup:true].
+(** If [grading] is [None], as per {!cleanup_files}.
     Otherwise, as per {!grade_files_to}, with [~cleanup:true]. *)
 
 val[@deprecated "use grade_cleanup_files_to"] prettify_results :
