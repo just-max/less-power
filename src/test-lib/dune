@@ -8,6 +8,7 @@
 
   ounit2
   ounit2.advanced
+  junit
   qcheck-core
   mtime
   mtime.clock.os
