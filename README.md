@@ -6,7 +6,7 @@ The LP framework was presented at the OCaml Users and Developers Workshop 2023. 
 
 ## Install
 
-The framework is currently fixed to OCaml 5.0.0. Hence, from an OCaml 5.0.0. switch, LP can be installed using opam:
+The framework is currently fixed to OCaml 5.1.1. Hence, from an OCaml 5.1.1. switch, LP can be installed using opam:
 
 ```sh
 opam pin add less-power https://github.com/just-max/less-power.git#main
@@ -17,6 +17,8 @@ Alternatively, the provided Docker image may be used:
 ```sh
 docker pull ghcr.io/just-max/less-power:main
 ```
+
+A specific tag may instead be substituted for `main`.
 
 # Development
 
@@ -45,7 +47,7 @@ opam upgrade --working-dir less-power  # make changes available
 
 For running real programming courses, programming exercises built for the Less Power framework are best run with [Artemis](https://github.com/ls1intum/Artemis). Artemis is an interactive learning platform that handles student participation and provides CI-based automated testing.
 
-However, the framework using only standard OCaml tooling, and may be adapted for use with other platforms that offer some from of continuous integration.
+However, the framework uses only standard OCaml tooling, and may be adapted for use with other platforms that offer some from of continuous integration.
 
 ## Examples
 

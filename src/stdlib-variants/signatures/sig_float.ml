@@ -24,6 +24,8 @@ module type SafeFloat = sig
   val infinity : float
   val neg_infinity : float
   val nan : float
+  val signaling_nan : float
+  val quiet_nan : float
   val pi : float
   val max_float : float
   val min_float : float
@@ -179,6 +181,7 @@ module type SafeFloat = sig
   val min_num : t -> t -> t
   val max_num : t -> t -> t
   val min_max_num : float -> float -> float * float
+  val seeded_hash : int -> t -> int
   val hash : t -> int
 
 end

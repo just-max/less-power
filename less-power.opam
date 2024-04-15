@@ -13,7 +13,7 @@ homepage: "https://github.com/just-max/less-power"
 bug-reports: "https://github.com/just-max/less-power/issues"
 depends: [
   "dune" {>= "3.0"}
-  "ocaml" {= "5.0.0"}
+  "ocaml" {= "5.1.1"}
   "xmlm" {>= "1.4" & < "1.5"}
   "fileutils" {>= "0.6" & < "0.7"}
   "qcheck-core" {>= "0.21" & < "0.22"}

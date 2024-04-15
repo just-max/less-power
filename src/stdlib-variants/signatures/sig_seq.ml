@@ -14,7 +14,9 @@ module type SafeSeq = sig
   val for_all : ('a -> bool) -> 'a t -> bool
   val exists : ('a -> bool) -> 'a t -> bool
   val find : ('a -> bool) -> 'a t -> 'a option
+  val find_index : ('a -> bool) -> 'a t -> int option
   val find_map : ('a -> 'b option) -> 'a t -> 'b option
+  val find_mapi : (int -> 'a -> 'b option) -> 'a t -> 'b option
   val iter2 : ('a -> 'b -> unit) -> 'a t -> 'b t -> unit
   val fold_left2 : ('a -> 'b -> 'c -> 'a) -> 'a -> 'b t -> 'c t -> 'a
   val for_all2 : ('a -> 'b -> bool) -> 'a t -> 'b t -> bool

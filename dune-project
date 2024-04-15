@@ -14,7 +14,7 @@
    "\| and at scale.
  )
  (depends
-  (ocaml (= 5.0.0))
+  (ocaml (= 5.1.1))
   (xmlm (and (>= 1.4) (< 1.5)))
   (fileutils (and (>= 0.6) (< 0.7)))
   (qcheck-core (and (>= 0.21) (< 0.22)))

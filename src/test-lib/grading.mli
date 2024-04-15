@@ -172,7 +172,7 @@ val evaluate_grading :
 (** {1 Reading and writing}
 
     Functionality to read tests from JUnit XML files, cleanup the files,
-    and write evaluated grading to a JUnix XML files. *)
+    and write evaluated grading to JUnit XML files. *)
 
 (** {2 Reading and cleanup} *)
 
