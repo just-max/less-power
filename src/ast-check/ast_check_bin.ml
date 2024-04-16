@@ -13,7 +13,7 @@ let main (_cmd : string) args =
     | vs ->
         status := max 1 !status;
         let open Fmt in
-        pr "@[<v>%a@]" (list ~sep:cut (box pp_violation)) vs
+        pr "@[<v>%a@]" (list ~sep:nop (box pp_violation)) vs
   in
   args |> List.iter (path_violations k);
   !status

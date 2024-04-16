@@ -7,10 +7,12 @@
   common
   fmt
   fileutils
-  compiler-libs.common
   ppxlib
   ppxlib.astlib
-  ppxlib.traverse_builtins))
+  ppxlib.traverse_builtins
+  compiler-libs.common ; native compiler-libs, required as dep. of wrapper
+  ocaml-compiler-libs.common ; wrapper library
+  ocaml-compiler-libs.shadow))
 
 (executable
  (name ast_check_bin)

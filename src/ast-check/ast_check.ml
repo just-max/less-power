@@ -1,4 +1,5 @@
 open Common.Util
+open Ocaml_shadow [@@warning "-33"]
 
 module Messages = struct
   let array = "This is a use of array syntax, which is not permitted"
@@ -228,8 +229,20 @@ let ast_violations_transformation ?prohibited ?limit (_ : expansion_ctx) ast =
 
 
 let file_violations ?prohibited ?limit path =
-  Pparse.parse_implementation ~tool_name:"lp-ast-check" path
-  |> ast_violations ?prohibited ?limit
+
+  (* hack: for pp_violation to show the error context, we need
+     the built-in parser to run on the file (the Location module doesn't
+     expose the functionality we need to do this ourselves) *)
+  Ocaml_common.Pparse.parse_implementation ~tool_name:"lp-ast-check" path |> ignore;
+
+  let open Common.Ctx_util in
+  let structure =
+    let< ch = In_channel.with_open_text path in
+    let lexbuf = Lexing.from_channel ch in
+    Lexing.set_filename lexbuf path;
+    Ppxlib.Parse.implementation lexbuf
+  in
+  ast_violations ?prohibited ?limit structure
 
 let path_violations ?(follow = FileUtil.Follow) ?prohibited ?limit
     ?(check1 = FileUtil.True) ?(check = FileUtil.Has_extension "ml") k path =
@@ -239,8 +252,9 @@ let path_violations ?(follow = FileUtil.Follow) ?prohibited ?limit
 
 
 let pp_violation ppf vio =
-  let open Location in
-  (* convert between Ppxlib and native types (why?) *)
+  let open Ocaml_common.Location in
+  (* Ppxlib does not expose the errorf and print_report functions we need,
+     so we "convert" the Ppxlib location to a native Location.t *)
   let loc = {
     loc_start = vio.location.Ppxlib.Location.loc_start;
     loc_end = vio.location.Ppxlib.Location.loc_end;
@@ -250,6 +264,9 @@ let pp_violation ppf vio =
   let report = errorf ~loc "%a" pp_violation_message vio in
   print_report ppf report
 
+(* TODO: drop file_violations, path_violations, and pp_violation,
+   along with ast_check_bin. The nicer way of doing things is through
+   a PPX rewriter and we should be able to remove the binary way of doing it *)
 
 let strip_signatures (_ : expansion_ctx) ast =
   let open Ppxlib.Ast in
