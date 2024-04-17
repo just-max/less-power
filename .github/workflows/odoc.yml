@@ -15,13 +15,16 @@ jobs:
       - name: Checkout tree
         uses: actions/checkout@v3
 
-      - name: Set-up OCaml 5.1
+      - name: Set-up OCaml 5.1.1
         uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-compiler: "5.1"
+          ocaml-compiler: "5.1.1"
           dune-cache: true
 
       - name: Deploy odoc to GitHub Pages
-        uses: ocaml/setup-ocaml/deploy-doc@v2
+        # last version of setup-ocaml with deploy-doc
+        # TODO: https://github.com/ocaml/setup-ocaml/blob/master/EXAMPLES.md
+        #   #using-the-official-github-pages-actions-to-deploy-odoc-to-github-pages
+        uses: ocaml/setup-ocaml/deploy-doc@v2.1.8
         with:
           destination-dir: ${{ github.head_ref || github.ref_name }}
