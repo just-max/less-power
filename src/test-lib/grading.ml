@@ -354,4 +354,4 @@ let grade_cleanup_files_to ?points_step_count ~grading_to ?grading =
 (* compat *)
 let prettify_results ?grading path =
   grade_cleanup_files_to [path] ?grading
-    ~grading_to:Filename.(concat (basename path) "grading.xml")
+    ~grading_to:Filename.(concat (dirname path) "grading.xml")
