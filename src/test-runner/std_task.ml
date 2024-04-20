@@ -302,6 +302,7 @@ let std_exec_test cfg ?env ~output_junit_file what = group @@ of_list [
 ]
 
 let std_output_junit_file = "results.xml"
+let std_grading_junit_file = "grading.xml"
 
 (** As {!std_exec_test}, fixed to [test/test.exe]
     with output to [test-reports/results.xml]. *)
@@ -309,6 +310,31 @@ let std_test cfg =
   std_exec_test cfg "test/test.exe"
     ~output_junit_file:std_output_junit_file
   |> with_ ~label:"test"
+
+(** Run an executable that processes the test results in the standard setup.
+    Executes [test/process_results.exe]. See the note about
+    building first in {!std_exec1}.
+
+    The given file names are taken relative to the [test-reports/]
+    directory and passed to the executable. *)
+let std_exec_process_results junit_files cfg =
+  let args =
+    junit_files
+    |> List.map Path_util.(fun file -> std_test_report_dir / file)
+  in
+  std_exec1 cfg "test/process_results.exe" ~args
+  |> with_ ~label:"process_results"
+
+(** As {!std_exec_process_results}, but: if [grading] is [true], the first
+    argument to the executable is [test-reports/grading.xml]. In any case,
+    the remaining [output_junit_files] (taken relative to the [test-reports/]
+    directory) follow, which defaults to [["results.xml"]]. *)
+let std_process_results
+    ?(grading = false) ?(output_junit_files = [std_output_junit_file]) cfg =
+  let junit_files =
+    (if grading then [std_grading_junit_file] else []) @ output_junit_files
+  in
+  std_exec_process_results junit_files cfg
 
 (** {1 Probe-related tasks (partial type correctness checking)} *)
 
