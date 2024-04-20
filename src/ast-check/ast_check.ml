@@ -14,23 +14,34 @@ module Messages = struct
   let tail_mod_cons =
     "This is a use of the 'Tail Modulo Constructor' \
      program transformation, which is not permitted"
-  let other = "The use of this feature is not permitted"
 end
 
 module Feature = struct
   type t =
     Array | Mutable_member | Object | Loop
-    | Primitive | Internal_name | Tail_mod_cons | Other
+    | Primitive | Internal_name | Tail_mod_cons
+
+  let identifiers = [
+    Array, "array";
+    Mutable_member, "mutable_member";
+    Object, "object";
+    Loop, "loop";
+    Primitive, "primitive";
+    Internal_name, "internal_name";
+    Tail_mod_cons, "tail_mod_cons";
+  ]
+
+  let to_identifier feature = List.assoc feature identifiers
+  let of_identifier ident = List.find (fun (_, id) -> ident = id) identifiers |> fst
 
   (* TODO: add TMC to AST-checker tests (needs executable to support flags) *)
-  (* TODO: remove Other? *)
 
   module Set = Set.Make (struct type nonrec t = t let compare = compare end)
 
   let all =
     Set.of_list
       [ Array; Mutable_member; Object; Loop;
-        Primitive; Internal_name; Tail_mod_cons; Other ]
+        Primitive; Internal_name; Tail_mod_cons ]
 
   let minimum = Set.of_list [ Primitive; Internal_name ]
   let default = Set.remove Tail_mod_cons all
@@ -45,7 +56,6 @@ module Feature = struct
     | Primitive -> primitive
     | Internal_name -> internal_name
     | Tail_mod_cons -> tail_mod_cons
-    | Other -> other
 end
 
 type violation = {

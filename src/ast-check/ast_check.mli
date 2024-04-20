@@ -32,8 +32,15 @@ module Feature :
   sig
     type t =
       Array | Mutable_member | Object | Loop
-      | Primitive | Internal_name | Tail_mod_cons | Other
+      | Primitive | Internal_name | Tail_mod_cons
     module Set : Set.S with type elt = t
+
+    val to_identifier : t -> string
+    (** Unique identifier for this feature. *)
+
+    val of_identifier : string -> t
+    (** Provides the feature corresponding to a unique identifier
+        returned by {!to_identifier}. *)
 
     val minimum : Set.t
     (** {!Primitive} and {!Internal_name}, required to

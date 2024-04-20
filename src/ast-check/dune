@@ -1,8 +1,7 @@
 (library
  (name ast_check)
  (public_name less-power.ast-check)
- (modules
-  (:standard \ ast_check_bin))
+ (modules ast_check)
  (libraries
   common
   fmt
@@ -20,3 +19,10 @@
  (package less-power)
  (modules ast_check_bin)
  (libraries common ast_check fmt))
+
+(library
+ (name ast_check_ppx)
+ (public_name less-power.ast-check-ppx)
+ (kind ppx_rewriter)
+ (modules ast_check_ppx)
+ (libraries ppxlib ast_check))
