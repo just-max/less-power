@@ -280,14 +280,6 @@ let extract_cleanup_files ?(cleanup = true) : string list -> testsuites =
       extract_cleanup_file path
         ?cleanup_to:(if cleanup then Some path else None))
 
-let cleanup_files paths =
-  extract_cleanup_files ~cleanup:true paths |> ignore
-
-let grade_files ?points_step_count ?cleanup grading paths =
-  extract_cleanup_files ?cleanup paths |> List.concat
-  |> evaluate_grading ?points_step_count grading
-
-
 let align_tabs text =
   let[@tail_mod_cons] rec drop_last = function
     | [] | [ _ ] -> []
@@ -335,23 +327,31 @@ let testsuite_of_result result =
   make ~name:"grading" ()
   |> add_testcases (feedback :: points)
 
-let write_result result path =
+let write_result ?(log_result = true) result path =
   let text = align_tabs result.text in
-  (* TODO: make error output configurable? *)
-  List.iter prerr_endline [ String.make 78 '='; text; String.make 78 '-' ];
+  if log_result then
+    List.iter prerr_endline [ String.make 78 '='; text; String.make 78 '-' ];
   let ts = testsuite_of_result { result with text } in
   Junit.to_file (Junit.make [ts]) path
 
-let grade_files_to ?points_step_count ?cleanup ~grading_to grading paths =
-  let result = grade_files ?points_step_count ?cleanup grading paths in
-  write_result result grading_to
+let grading_options ?points_step_count ~grading_to grading =
+  (grading, points_step_count, grading_to)
 
-let grade_cleanup_files_to ?points_step_count ~grading_to ?grading =
-  match grading with
-  | None -> cleanup_files
-  | Some g -> grade_files_to ?points_step_count ~cleanup:true ~grading_to g
+let process_files ?cleanup ?grade ?log_result paths =
+  let ts = extract_cleanup_files ?cleanup paths in
+  match grade with
+  | None -> ()
+  | Some (g, points_step_count, grading_to) ->
+      let result = evaluate_grading ?points_step_count g (List.concat ts) in
+      write_result ?log_result result grading_to
 
-(* compat *)
+(* compat, deprecated *)
 let prettify_results ?grading path =
-  grade_cleanup_files_to [path] ?grading
-    ~grading_to:Filename.(concat (dirname path) "grading.xml")
+  let grading_opts =
+    match grading with
+    | None -> None
+    | Some g ->
+        let grading_to = Filename.(concat (dirname path) "grading.xml") in
+        Some (grading_options ~grading_to g)
+  in
+  process_files [path] ~cleanup:true ?grade:grading_opts

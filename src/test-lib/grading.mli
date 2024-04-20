@@ -171,15 +171,34 @@ val evaluate_grading :
 
 (** {1 Reading and writing}
 
-    Functionality to read tests from JUnit XML files, cleanup the files,
+    Functionality to read tests from JUnit XML files, clean up the files,
     and write evaluated grading to JUnit XML files. *)
 
-(** {2 Reading and cleanup} *)
+(** {2 Reading and clean up} *)
 
 val extract_cleanup_file : ?cleanup_to:string -> string -> testsuites
 (** Extract the list of testsuites from a JUnit XML file. If [cleanup_to] is
     given, write the result of tidying up the result back to disk. The paths
     may be identical, in which case the original file is overwritten. *)
+
+(** {2 Writing} *)
+
+val write_result : ?log_result:bool -> grading_result -> string -> unit
+(** Write a grading result to file. If [log_result] is [true] (default),
+    print a human-readable summary of grading results to standard error. *)
+
+(** {2 Helpers} *)
+
+(** Helpers to perform the most common sequence of operations:
+
+    + Read a list of JUnit XML files, extracting their test suites,
+      and (optionally) cleaning them up, in-place.
+    + Evaluate the list of passing/failing tests on a given grading scheme.
+    + Write the result to file.
+
+    Steps 2 and 3 can be skipped if no grading scheme is used.
+    These helpers always clean up in-place, i.e. overwrite
+    the original XML file, which is the intended use. *)
 
 val extract_cleanup_files : ?cleanup:bool -> string list -> testsuites
 (** As {!extract_cleanup_file} but for a list of files. The list of testsuites
@@ -187,34 +206,29 @@ val extract_cleanup_files : ?cleanup:bool -> string list -> testsuites
     If [cleanup] is [true] (default), then overwrite each file with
     the cleaned up result, otherwise don't clean up. *)
 
-val cleanup_files : string list -> unit
-(** As {!extract_cleanup_files} with [~cleanup:true], ignoring the result. *)
+val process_files :
+  ?cleanup:bool -> ?grade:(grading * int option * string) ->
+  ?log_result:bool -> string list -> unit
+(** Combines {!extract_cleanup_files}, {!evaluate_grading} and {!write_result}.
 
-val grade_files :
+    Extracts grading and (optionally) cleans up in-place,
+    as per {!extract_cleanup_files}.
+    If [grade] is [Some (grading, points_step_count, path)],
+    then evaluate [grading] as per {!evaluate_grading} with the given
+    [points_step_count], and write the result to [path],
+    as per {!write_result}. *)
+
+val grading_options :
   ?points_step_count:int ->
-  ?cleanup:bool -> grading -> string list -> grading_result
-(** Combines {!extract_cleanup_files} and {!evaluate_grading}. *)
+  grading_to:string ->
+  grading ->
+  grading * int option * string
+(** Helper to write the [grade] argument to
+    {!extract_cleanup_grade_files_to} more nicely. *)
 
-(** {2 Writing} *)
-
-val write_result : grading_result -> string -> unit
-(** Write a grading result to file. *)
-
-(** {2 Helpers} *)
-
-val grade_files_to :
-  ?points_step_count:int ->
-  ?cleanup:bool -> grading_to:string -> grading -> string list -> unit
-(** Combines {!grade_files} and {!write_result},
-    writing the result to [grading_to]. *)
-
-val grade_cleanup_files_to :
-  ?points_step_count:int ->
-  grading_to:string -> ?grading:grading -> string list -> unit
-(** If [grading] is [None], as per {!cleanup_files}.
-    Otherwise, as per {!grade_files_to}, with [~cleanup:true]. *)
-
-val[@deprecated "use grade_cleanup_files_to"] prettify_results :
+val[@deprecated "use extract_cleanup_grade_files_to"] prettify_results :
   ?grading:grading -> string -> unit
-(** As per {!grade_cleanup_files_to} with a single path and with grading
-    written to [grading.xml] in the same directory. *)
+(** As per {!extract_cleanup_grade_files_to} with a single path and
+    [~cleanup:true]. If [grading] is given, then that grading is passed through
+    with a [point_step_count] of [1] and the grading result written to
+    [grading.xml] in the same directory as the given file. *)
