@@ -192,7 +192,7 @@ let fold_forest_down f = snd (fold_down f)
 
 let read_tree path =
   let open Common.Ctx_util in
-  let< ch = In_channel.with_open_gen [ Open_binary; Open_creat; Open_rdonly ] 0 path in
+  let< ch = In_channel.with_open_bin path in
   let xml_in = Xmlm.make_input (`Channel ch) in
   in_tree xml_in
 
