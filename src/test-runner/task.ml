@@ -147,8 +147,9 @@ and run_tree : type a b. a st_in -> (a, b) tree -> b st_out * summary =
     | None, None -> None
   in
 
+  let open Ctx_util in
+
   let result, t_elapsed =
-    let open Ctx_util in
     let< () = timed in
     let< () = capture_exceptions () in
     let< () = optional_timeout_unix ?timeout:remaining_time in
@@ -174,7 +175,7 @@ and run_tree : type a b. a st_in -> (a, b) tree -> b st_out * summary =
       in
       make_result subtasks_state ~subtasks_elapsed ~subtasks_summary
   | Ok None -> make_result (Error Timed_out)
-  | Error e ->
+  | Error { exn = e; _ } ->
       let err = match e with
       | Task_failure pp -> Task_failed pp
       | _ -> Exception_raised e
