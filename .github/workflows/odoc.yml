@@ -19,15 +19,13 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: "5.1.1"
+          # disable cache, otherwise generated documentation is missing files
           dune-cache: false
 
       - run: opam install . --deps-only --with-doc
         shell: bash
 
       - run: opam exec -- dune build --verbose @doc
-        shell: bash
-
-      - run: find _build/default/_doc/_html
         shell: bash
 
       - name: Deploy odoc to GitHub Pages
