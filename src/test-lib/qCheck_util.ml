@@ -23,7 +23,9 @@ let is_user_fail exn =
     @param context Add this string as context before failure message
     @param eq Check for equality, return [Some x] if equal or [None] if not
     @return The result of [eq], if not [None], as [Ok]. *)
-let assert_equal ?context ?timeout ~eq ~printers expected_f actual_f =
+let assert_equal
+    ?context ?(timeout = default_computation_timeout) ~eq ~printers
+    expected_f actual_f =
   let open Result in
   let open Ctx_util in
 
@@ -33,7 +35,7 @@ let assert_equal ?context ?timeout ~eq ~printers expected_f actual_f =
 
   let wrap f =
     let< () = capture_exceptions () in
-    let< () = optional_timeout_unix ?timeout in
+    let< () = timeout_unix timeout in
     f ()
   in
 
