@@ -13,18 +13,24 @@ jobs:
       contents: write
     steps:
       - name: Checkout tree
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set-up OCaml 5.1.1
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: "5.1.1"
-          dune-cache: true
+          # disable cache, otherwise generated documentation is missing files
+          dune-cache: false
+
+      - run: opam install . --deps-only --with-doc
+        shell: bash
+
+      - run: opam exec -- dune build --verbose @doc
+        shell: bash
 
       - name: Deploy odoc to GitHub Pages
-        # last version of setup-ocaml with deploy-doc
-        # TODO: https://github.com/ocaml/setup-ocaml/blob/master/EXAMPLES.md
-        #   #using-the-official-github-pages-actions-to-deploy-odoc-to-github-pages
-        uses: ocaml/setup-ocaml/deploy-doc@v2.1.8
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          destination-dir: ${{ github.head_ref || github.ref_name }}
+          github_token: ${{ github.token }}
+          publish_dir: _build/default/_doc/_html
+          destination_dir: ${{ github.head_ref || github.ref_name }}
