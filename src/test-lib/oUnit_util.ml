@@ -53,7 +53,7 @@ let of_qcheck ?(timeout = default_qcheck_timeout) (QCheck2.Test.Test cell) =
   let test_length =
     let open Mtime.Span in
     let timeout_ns = to_uint64_ns timeout in
-    let extra = Int64.(div timeout_ns (of_int 4)) |> of_uint64_ns in
+    let extra = Int64.(unsigned_div timeout_ns 4L) |> of_uint64_ns in
     Custom_length (add timeout extra |> Util.span_to_float_s)
   in
   name >: TestCase (test_length, test_fun)
