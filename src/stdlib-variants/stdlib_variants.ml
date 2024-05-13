@@ -2,6 +2,11 @@
 
 module Stdlib_components = Stdlib_components
 
+module Hide_stdlib_variants = struct
+  (* Prevent access to the full variant library. *)
+  module Stdlib_variants = struct end
+end
+
 module SafeStdlib = struct
   (** [SAFE] Everything safe from the standard library, including
       everything safe from sub-modules of [Stdlib].*)
@@ -26,6 +31,5 @@ module SafeStdlib = struct
 
   include SafeAliases
 
-  (* Prevent access to the full variant library. *)
-  module Stdlib_variants = struct end
+  include Hide_stdlib_variants
 end
