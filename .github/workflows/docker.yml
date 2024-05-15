@@ -10,7 +10,7 @@ jobs:
   build-deploy-docker:
     runs-on: ubuntu-latest
     permissions:
-      contents: readt
+      contents: read
       packages: write
     steps:
       - name: Checkout tree
