@@ -223,12 +223,11 @@ val grading_options :
   grading_to:string ->
   grading ->
   grading * int option * string
-(** Helper to write the [grade] argument to
-    {!extract_cleanup_grade_files_to} more nicely. *)
+(** Helper to write the [grade] argument to {!process_files} more nicely. *)
 
-val[@deprecated "use extract_cleanup_grade_files_to"] prettify_results :
+val[@deprecated "use process_files"] prettify_results :
   ?grading:grading -> string -> unit
-(** As per {!extract_cleanup_grade_files_to} with a single path and
+(** As per {!process_files} with a single path and
     [~cleanup:true]. If [grading] is given, then that grading is passed through
     with a [point_step_count] of [1] and the grading result written to
     [grading.xml] in the same directory as the given file. *)

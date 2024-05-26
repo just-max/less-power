@@ -6,6 +6,10 @@ This framework consists of a number of libraries and executables for testing unt
 
 {1 Components}
 
-The following components are included in the package:
+The following public components are included in the package:
 
 {!modules: Ast_check Stdlib_variants Test_lib Test_runner}
+
+The following components are intended for use within framework code only:
+
+{!modules: Common}

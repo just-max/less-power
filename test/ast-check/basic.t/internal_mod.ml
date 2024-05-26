@@ -18,7 +18,7 @@ module _ = struct
   module M2 = struct
     open Stdlib__Array
   end
-  
+
   module M3 (A : module type of Stdlib.Array) = struct end
   module M4 = M3 (Stdlib__Array)
 
