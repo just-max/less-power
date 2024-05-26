@@ -18,6 +18,18 @@ let uncons = function [] -> None | x :: xs -> Some (x, xs)
 
 let unsnoc xs = uncons (List.rev xs) |> Option.map (fun (x, xs) -> List.rev xs, x)
 
+(** Same as {!List.equal, but allows lists of different types} *)
+let rec list_equal eq l1 l2 =
+  match l1, l2 with
+  | [], [] -> true
+  | [], _::_ | _::_, [] -> false
+  | a1::l1, a2::l2 -> eq a1 a2 && list_equal eq l1 l2
+
+let[@tail_mod_cons] rec update_assoc f a = function
+  | [] -> (match f None with Some v -> [(a, v)] | None -> [])
+  | (k, v) :: tail when k = a -> (match f (Some v) with Some v' -> (k, v') :: tail | None -> tail)
+  | kv :: tail -> kv :: update_assoc f a tail
+
 let or_option o1 o2 = o1 |> Option.(fold ~some ~none:o2)
 
 let filter_option f = function Some x as o when f x -> o | _ -> None

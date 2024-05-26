@@ -1,6 +1,13 @@
 (** Variants of [Stdlib] with restricted or modified functionality. *)
 
+
+(** {!modules: Stdlib_components} *)
+
 module Stdlib_components = Stdlib_components
+
+(** {!modules: Alert_stdlib} *)
+
+module Alert_stdlib = Alert_stdlib
 
 module Hide_stdlib_variants = struct
   (* Prevent access to the full variant library. *)

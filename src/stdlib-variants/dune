@@ -2,7 +2,4 @@
  (name stdlib_variants)
  (public_name less-power.stdlib-variants)
 
- (flags (:standard -nopervasives))
- (libraries common))
-
-(include_subdirs unqualified)
+ (libraries common stdlib_components alert_stdlib))

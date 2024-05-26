@@ -1,0 +1,5 @@
+(library
+ (name alert_stdlib)
+ (public_name less-power.alert-stdlib)
+ (preprocess (pps signature_builder_ppx))
+ (libraries signature_builder))

@@ -1,0 +1,6 @@
+(executable
+ (name mk_intf_desc)
+ (public_name lp-make-interface-description)
+ (preprocess
+  (pps ppxlib.metaquot))
+ (libraries common ppxlib ppxlib.astlib))
