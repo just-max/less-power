@@ -1,4 +1,7 @@
-(** Like {!Stdlib}, but with items that can be restricted annotated with alerts.
+(** Variants of {!Stdlib}, but with signature items that can be restricted annotated with alerts.
+
+There is one "variant" of the {!Stdlib} interface implemented, namely {!Alerting_stdlib}.
+Alerts are placed on signature items (types, values, and modules) so that those items can be restricted.
 
 The following alerts are used:
 
@@ -8,6 +11,10 @@ The following alerts are used:
 - [input_output]: all kinds of real IO
 - [impure]: references, arrays, and other imperative programming constructs
 - [unsafe]: generally unsafe operations
+
+By default, for a "safe" sandbox environment, the following alerts should be enabled:
+[physical_eq], [input_output], [impure], [unsafe]. The remaining alerts are intended for
+specific situtations and exercises where more needs to be restricted.
 *)
 
 module type Alerting_stdlib = sig
@@ -19,7 +26,11 @@ module type Alerting_stdlib = sig
   [@@@alert "-impure"]
   [@@@alert "-unsafe"]
 
-  (** Like {!Stdlib}, but with items that can be restricted annotated with alerts. *)
+  (** Derived from {!Stdlib}, but with items that can be restricted annotated with alerts.
+
+      Things that can be restricted are marked with an {b ⚠️ Alert}.
+      Not everything marked here is disabled by default though.
+      See {!Alert_stdlib} for the defaults. *)
 
   (** {1 [raise] primitives and standard exceptions} *)
 
