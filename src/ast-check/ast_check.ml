@@ -11,6 +11,7 @@ module Messages = struct
     "This identifier contains a name that starts with an Uppercase letter \
      and contains Two__Underscores in a row\n\
      The use of identifiers of this form is not permitted"
+  let alert_control = "This annotation changes which alerts are enabled, which is not permitted"
   let tail_mod_cons =
     "This is a use of the 'Tail Modulo Constructor' \
      program transformation, which is not permitted"
@@ -19,7 +20,7 @@ end
 module Feature = struct
   type t =
     Array | Mutable_member | Object | Loop
-    | Primitive | Internal_name | Tail_mod_cons
+    | Primitive | Internal_name | Alert_control | Tail_mod_cons
 
   let identifiers = [
     Array, "array";
@@ -28,6 +29,7 @@ module Feature = struct
     Loop, "loop";
     Primitive, "primitive";
     Internal_name, "internal_name";
+    Alert_control, "alert_control";
     Tail_mod_cons, "tail_mod_cons";
   ]
 
@@ -41,9 +43,9 @@ module Feature = struct
   let all =
     Set.of_list
       [ Array; Mutable_member; Object; Loop;
-        Primitive; Internal_name; Tail_mod_cons ]
+        Primitive; Internal_name; Alert_control; Tail_mod_cons ]
 
-  let minimum = Set.of_list [ Primitive; Internal_name ]
+  let minimum = Set.of_list [ Primitive; Internal_name; Alert_control ]
   let default = Set.remove Tail_mod_cons all
 
   let to_message : t -> string =
@@ -55,6 +57,7 @@ module Feature = struct
     | Loop -> loop
     | Primitive -> primitive
     | Internal_name -> internal_name
+    | Alert_control -> alert_control
     | Tail_mod_cons -> tail_mod_cons
 end
 
@@ -90,6 +93,7 @@ module Patterns = struct
 
   let exp_loc exp = exp.pexp_loc
   let str_loc str = str.pstr_loc
+  let attr_loc attr = attr.attr_loc
 
   let map1_violations loc feature =
     as__ %> map1 ~f:(fun x -> violation1 (loc x) feature)
@@ -117,6 +121,16 @@ module Patterns = struct
     let vio feat = map1_violations str_loc feat in
     drop1 pstr_primitive |> vio Primitive
     or (drop1 pstr_class or drop1 pstr_class_type) |> vio Object
+    or no_violation ()
+
+  let attr_violations () =
+    let vio feat = map1_violations attr_loc feat in
+    attribute ~name:(string "tail_mod_cons" or string "ocaml.tail_mod_cons")
+      ~payload:(pstr nil)
+      |> vio Tail_mod_cons
+    or attribute ~name:(string "alert" or string "ocaml.alert")
+      ~payload:(single_expr_payload (estring drop))
+      |> vio Alert_control
     or no_violation ()
 
 end
@@ -197,11 +211,7 @@ let iter_violations context =
 
     method! attribute =
       iter ~loc:(fun attr -> attr.attr_loc) super#attribute
-      @@ violation_when
-          (fun attr ->
-            List.mem attr.attr_name.txt
-              ["tail_mod_cons"; "ocaml.tail_mod_cons"])
-          Tail_mod_cons
+      @@ violation_pat Patterns.attr_violations
 
   end
 
