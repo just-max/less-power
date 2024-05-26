@@ -41,13 +41,32 @@ module Stdlib_safe = struct
   include Formats
 
   include SafeAliases
-
-  include Hide_stdlib_variants
 end
 
-module SafeStdlib = Stdlib_safe (* compat *)
 
-module Stdlib_alerting = struct
-  include (Stdlib : Stdlib_alerts.Stdlib_alerting)
+module Stdlib_alerting : Stdlib_alerts.Stdlib_alerting = Stdlib
+
+
+module Overrides = struct
+  (** Ready-to-use modules for replacing the default pervasives using -open *)
+
+  module Stdlib_safe = struct
+    module Stdlib = Stdlib_safe
+    include Stdlib_safe
+    include Hide_stdlib_variants
+  end
+
+  module Stdlib_alerting = struct
+    module Stdlib = Stdlib_alerting
+    include Stdlib_alerting
+    include Hide_stdlib_variants
+  end
+
+end
+
+
+(* compat *)
+module SafeStdlib = struct
+  include Stdlib_safe
   include Hide_stdlib_variants
 end
