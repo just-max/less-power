@@ -1,6 +1,6 @@
 (** Variants of {!Stdlib}, but with signature items that can be restricted annotated with alerts.
 
-There is one "variant" of the {!Stdlib} interface implemented, namely {!Alerting_stdlib}.
+There is one "variant" of the {!Stdlib} interface implemented, namely {!Stdlib_alerting}.
 Alerts are placed on signature items (types, values, and modules) so that those items can be restricted.
 
 The following alerts are used:
@@ -17,7 +17,7 @@ By default, for a "safe" sandbox environment, the following alerts should be ena
 specific situtations and exercises where more needs to be restricted.
 *)
 
-module type Alerting_stdlib = sig
+module type Stdlib_alerting = sig
 
   [@@@alert "-physical_eq"]
   [@@@alert "-debug_macro"]
@@ -30,7 +30,7 @@ module type Alerting_stdlib = sig
 
       Things that can be restricted are marked with an {b ⚠️ Alert}.
       Not everything marked here is disabled by default though.
-      See {!Alert_stdlib} for the defaults. *)
+      See {!Stdlib_alerts} for the defaults. *)
 
   (** {1 [raise] primitives and standard exceptions} *)
 
@@ -157,9 +157,9 @@ module type Alerting_stdlib = sig
       open_in, open_in_bin, open_in_gen,
       input_char, input_line, input, really_input, really_input_string,
       input_byte, input_binary_int, input_value, seek_in, pos_in,
-      in_channel_length, close_in, close_in_noerr, set_binary_mode_in(* ,
+      in_channel_length, close_in, close_in_noerr, set_binary_mode_in,
       (* Operations on large files *)
-      LargeFile *)
+      LargeFile
     )
   }]
 
@@ -238,7 +238,7 @@ module type Alerting_stdlib = sig
     ]
   end
 
-  module List : sig
+  module [@alert list_op "List operations are not permitted"] List : sig
     [%%include
       stdlib.list (!standard - (memq, assq, assq_opt, mem_assq, remove_assq)),
       { attributes = __ [@alert physical_eq "Physical comparisons are not permitted"];
@@ -246,7 +246,7 @@ module type Alerting_stdlib = sig
     ]
   end
 
-  module ListLabels : sig
+  module [@alert list_op "List operations are not permitted"] ListLabels : sig
     [%%include
       stdlib.listLabels (!standard - (memq, assq, assq_opt, mem_assq, remove_assq)),
       { attributes = __ [@alert physical_eq "Physical comparisons are not permitted"];
@@ -293,7 +293,7 @@ module type Alerting_stdlib = sig
     ]
   end
 
-  module Seq : sig
+  module [@alert list_op "List (and sequence) operations are not permitted"] Seq : sig
     [%%include
       stdlib.seq (!standard - (once, Forced_twice, to_dispenser)),
       { attributes = __ [@alert impure "This imperative programming item is not permitted"];
@@ -303,7 +303,9 @@ module type Alerting_stdlib = sig
 
   module StdLabels : sig
     [%%include
-      stdlib.stdLabels (List, String),
+      stdlib.stdLabels (String),
+      { attributes = __ [@alert list_op "List operations are not permitted"];
+        items = stdlib.stdLabels (List) },
       { attributes = __ [@alert impure "Arrays are not permitted"];
         items = stdlib.stdLabels (Array) },
       { attributes = __ [@alert impure "This imperative programming module is not permitted"];
@@ -358,4 +360,4 @@ module type Alerting_stdlib = sig
 
 end
 
-module _ : Alerting_stdlib = Stdlib (* sanity check *)
+module _ : Stdlib_alerting = Stdlib (* sanity check *)

@@ -5,16 +5,20 @@
 
 module Stdlib_components = Stdlib_components
 
-(** {!modules: Alert_stdlib} *)
+(** {!modules: Stdlib_alerts} *)
 
-module Alert_stdlib = Alert_stdlib
+module Stdlib_alerts = Stdlib_alerts
 
 module Hide_stdlib_variants = struct
   (* Prevent access to the full variant library. *)
   module Stdlib_variants = struct end
+
+  (* Shouldn't be necessary with (implicit_transitive_deps false), but to be safe... *)
+  module Stdlib_components = struct end
+  module Stdlib_alerts = struct end
 end
 
-module SafeStdlib = struct
+module Stdlib_safe = struct
   (** [SAFE] Everything safe from the standard library, including
       everything safe from sub-modules of [Stdlib].*)
 
@@ -38,5 +42,12 @@ module SafeStdlib = struct
 
   include SafeAliases
 
+  include Hide_stdlib_variants
+end
+
+module SafeStdlib = Stdlib_safe (* compat *)
+
+module Stdlib_alerting = struct
+  include (Stdlib : Stdlib_alerts.Stdlib_alerting)
   include Hide_stdlib_variants
 end

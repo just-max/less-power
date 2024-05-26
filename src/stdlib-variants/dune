@@ -2,4 +2,4 @@
  (name stdlib_variants)
  (public_name less-power.stdlib-variants)
 
- (libraries common stdlib_components alert_stdlib))
+ (libraries common stdlib_components stdlib_alerts))
