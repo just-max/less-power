@@ -32,7 +32,7 @@ module Feature :
   sig
     type t =
       Array | Mutable_member | Object | Loop
-      | Primitive | Internal_name | Tail_mod_cons
+      | Primitive | Internal_name | Alert_control | Tail_mod_cons
     module Set : Set.S with type elt = t
 
     val to_identifier : t -> string

@@ -1,0 +1,93 @@
+(include_subdirs no)
+
+(library
+ (name signature_builder)
+ (public_name less-power.signature-builder)
+ (preprocess
+  (pps ppxlib.metaquot))
+ (modules :standard \ signature_builder_ppx)
+ (libraries ppxlib common))
+
+(library
+ (name signature_builder_ppx)
+ (public_name less-power.signature-builder-ppx)
+ (kind ppx_rewriter)
+ (modules signature_builder_ppx)
+ (libraries ppxlib signature_builder))
+
+(rule
+ (target stdlib_signature_info.ml)
+ (action
+  (with-stdout-to
+   %{target}
+   (run
+    lp-make-interface-description
+    ; to generate this list:
+    ; find "$(ocamlc -where)" -maxdepth 1 -name '*.mli' -execdir bash -c 'echo "%{lib:stdlib:$(basename "$1")}"' -- {} \; | sort
+    %{lib:stdlib:arg.mli}
+    %{lib:stdlib:arrayLabels.mli}
+    %{lib:stdlib:array.mli}
+    %{lib:stdlib:atomic.mli}
+    %{lib:stdlib:bigarray.mli}
+    %{lib:stdlib:bool.mli}
+    %{lib:stdlib:buffer.mli}
+    %{lib:stdlib:bytesLabels.mli}
+    %{lib:stdlib:bytes.mli}
+    %{lib:stdlib:callback.mli}
+    %{lib:stdlib:camlinternalFormatBasics.mli}
+    %{lib:stdlib:camlinternalFormat.mli}
+    %{lib:stdlib:camlinternalLazy.mli}
+    %{lib:stdlib:camlinternalMod.mli}
+    %{lib:stdlib:camlinternalOO.mli}
+    %{lib:stdlib:char.mli}
+    %{lib:stdlib:complex.mli}
+    %{lib:stdlib:condition.mli}
+    %{lib:stdlib:digest.mli}
+    %{lib:stdlib:domain.mli}
+    %{lib:stdlib:effect.mli}
+    %{lib:stdlib:either.mli}
+    %{lib:stdlib:ephemeron.mli}
+    %{lib:stdlib:filename.mli}
+    %{lib:stdlib:float.mli}
+    %{lib:stdlib:format.mli}
+    %{lib:stdlib:fun.mli}
+    %{lib:stdlib:gc.mli}
+    %{lib:stdlib:hashtbl.mli}
+    %{lib:stdlib:in_channel.mli}
+    %{lib:stdlib:int32.mli}
+    %{lib:stdlib:int64.mli}
+    %{lib:stdlib:int.mli}
+    %{lib:stdlib:lazy.mli}
+    %{lib:stdlib:lexing.mli}
+    %{lib:stdlib:listLabels.mli}
+    %{lib:stdlib:list.mli}
+    %{lib:stdlib:map.mli}
+    %{lib:stdlib:marshal.mli}
+    %{lib:stdlib:moreLabels.mli}
+    %{lib:stdlib:mutex.mli}
+    %{lib:stdlib:nativeint.mli}
+    %{lib:stdlib:obj.mli}
+    %{lib:stdlib:oo.mli}
+    %{lib:stdlib:option.mli}
+    %{lib:stdlib:out_channel.mli}
+    %{lib:stdlib:parsing.mli}
+    %{lib:stdlib:printexc.mli}
+    %{lib:stdlib:printf.mli}
+    %{lib:stdlib:queue.mli}
+    %{lib:stdlib:random.mli}
+    %{lib:stdlib:result.mli}
+    %{lib:stdlib:scanf.mli}
+    %{lib:stdlib:semaphore.mli}
+    %{lib:stdlib:seq.mli}
+    %{lib:stdlib:set.mli}
+    %{lib:stdlib:stack.mli}
+    %{lib:stdlib:std_exit.mli}
+    %{lib:stdlib:stdLabels.mli}
+    %{lib:stdlib:stdlib.mli}
+    %{lib:stdlib:stringLabels.mli}
+    %{lib:stdlib:string.mli}
+    %{lib:stdlib:sys.mli}
+    %{lib:stdlib:type.mli}
+    %{lib:stdlib:uchar.mli}
+    %{lib:stdlib:unit.mli}
+    %{lib:stdlib:weak.mli}))))

@@ -213,3 +213,23 @@ Check that we cover the basics, as promised in the documentation of Ast_check
          and contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   [1]
+
+  $ lp-ast-check alert_control.ml
+  File "alert_control.ml", line 1, characters 10-38:
+  1 | let x = 1 [@@alert "-important_alert"]
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Error: This annotation changes which alerts are enabled, which is not
+         permitted
+  
+  File "alert_control.ml", line 3, characters 0-35:
+  3 | [@@@alert "-crazy_important_alert"]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Error: This annotation changes which alerts are enabled, which is not
+         permitted
+  
+  File "alert_control.ml", line 8, characters 8-32:
+  8 |     let [@alert "--even_nested"] x = 42 in
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  Error: This annotation changes which alerts are enabled, which is not
+         permitted
+  [1]

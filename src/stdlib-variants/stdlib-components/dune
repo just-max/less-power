@@ -1,0 +1,6 @@
+(include_subdirs unqualified)
+
+(library
+ (name stdlib_components)
+ (public_name less-power.stdlib-components)
+ (flags (:standard -nopervasives)))
