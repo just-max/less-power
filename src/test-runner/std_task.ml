@@ -287,18 +287,21 @@ let std_build cfg = group ~label:"build" @@ of_list [
     Thus, first runs the given executable without any arguments, then runs it a
     second time, with the given [output_junit_file] (interpreted relative to the
     [test-reports/] directory) as the output JUnit file. *)
-let std_exec_test cfg ?env ~output_junit_file what = group @@ of_list [
+let std_exec_test cfg ?env ?(shards = Some 1) ~output_junit_file what = group @@ of_list [
   (* Note: the 'probe' name here is unrelated to the partial signature
      checking probe below, and refers to the top-level check *)
   std_exec1 cfg ~phase:`Probe ?env what |> with_ ~label:"top_level";
 
   (* run the test! *)
-  std_exec1 cfg ~phase:`Test ?env what
-    ~args:[
-      "-output-junit-file";
-      Path_util.(std_test_report_dir / output_junit_file)
-    ]
-  |> with_ ~label:"run";
+  let args =
+    (match shards with
+    | Some i -> ["-shards"; string_of_int i]
+    | None -> [])
+    @
+    [ "-output-junit-file";
+      Path_util.(std_test_report_dir / output_junit_file); ]
+  in
+  std_exec1 cfg ~phase:`Test ?env what ~args |> with_ ~label:"run";
 ]
 
 let std_output_junit_file = "results.xml"
@@ -306,8 +309,8 @@ let std_grading_junit_file = "grading.xml"
 
 (** As {!std_exec_test}, fixed to [test/test.exe]
     with output to [test-reports/results.xml]. *)
-let std_test cfg =
-  std_exec_test cfg "test/test.exe"
+let std_test ?shards cfg =
+  std_exec_test cfg ?shards "test/test.exe"
     ~output_junit_file:std_output_junit_file
   |> with_ ~label:"test"
 
