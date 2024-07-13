@@ -41,9 +41,11 @@ let load_signature_info (raw_info : raw_signature_info) =
     (fun n (path, raw_sig) -> info_add_signature path (load_raw_signature raw_sig) n)
     (Node (None, [])) raw_info
 
-(** {1 Signature of {!Stdlib}} *)
+(** {1 Signature of {!Stdlib} and {!Thread}/{!Event}} *)
 
 let stdlib_signature_info = Stdlib_signature_info.signature_info |> load_signature_info
+
+let threads_signature_info = Threads_signature_info.signature_info |> load_signature_info
 
 (** {1 PPX rewriter} *)
 
@@ -298,9 +300,15 @@ and eval_include_spec sig_infos = function
       eval_include_specs sig_infos spec_items
       |> List.map (modify_attributes (fun attr -> attr @ attributes))
 
+let default_sig_infos = [
+  ("stdlib", stdlib_signature_info);
+  ("threads", threads_signature_info);
+]
+
 (** PPX intended for use an a Ppxlib extender. The default [sig_infos] argument
-    contains descriptions for the standard library under ["stdlib"]. *)
-let ppx_include ?(sig_infos = ["stdlib", stdlib_signature_info]) ~ctxt exp =
+    contains descriptions for the standard library under ["stdlib"]
+    and for threads/events under ["threads"]. *)
+let ppx_include ?(sig_infos = default_sig_infos) ~ctxt exp =
   let loc = Expansion_context.Extension.extension_point_loc ctxt in
   let module B = Ast_builder.Make (struct let loc = loc end) in
   let sig_items = Parse.include_specs exp |> eval_include_specs sig_infos in

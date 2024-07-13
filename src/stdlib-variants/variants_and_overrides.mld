@@ -1,0 +1,26 @@
+{0 Stdlib Variants and Overrides}
+
+Modules and tools for overriding which standard library
+values are available to student code.
+
+{1 [Stdlib] variants}
+
+Variants of [Stdlib]. These are modules that contain values
+like [( = )] and further modules like [List].
+
+{!modules: Stdlib_alerts Stdlib_components}
+
+Prefer {!Stdlib_alerts} for new code. Unlike {!Stdlib_components}, it provides feedback
+beyond just [Error: Unbound value] if a prohibited item is used.
+
+{1 Modules for opening at the top level}
+
+Modules that are intended to be opened at the top level (what the compiler calls "pervasives").
+Usually this contains a module called [Stdlib], as well as the {i contents} of that module
+(e.g. via [open]). It may also contain e.g. a module called [Thread].
+
+{!modules: Overrides}
+
+{1 Implementation modules}
+
+{!modules: Signature_builder}
