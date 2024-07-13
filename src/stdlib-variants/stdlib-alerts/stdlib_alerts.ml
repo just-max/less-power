@@ -15,16 +15,152 @@ The following alerts are used:
 By default, for a "safe" sandbox environment, the following alerts should be enabled:
 [physical_eq], [input_output], [impure], [unsafe]. The remaining alerts are intended for
 specific situtations and exercises where more needs to be restricted.
+
+Similar modules for {Thread} and {Event} are in {!Threads_alerts} to avoid unnecessary dependencies.
 *)
 
-module type Stdlib_alerting = sig
+[@@@alert "-physical_eq"]
+[@@@alert "-debug_macro"]
+[@@@alert "-list_op"]
+[@@@alert "-input_output"]
+[@@@alert "-impure"]
+[@@@alert "-unsafe"]
 
-  [@@@alert "-physical_eq"]
-  [@@@alert "-debug_macro"]
-  [@@@alert "-list_op"]
-  [@@@alert "-input_output"]
-  [@@@alert "-impure"]
-  [@@@alert "-unsafe"]
+module type Char_alerting = sig
+  [%%include stdlib.char (!standard - unsafe_chr)]
+end
+
+module type Digest_alerting = sig
+  [%%include
+    stdlib.digest (t, compare, equal, string, substring, to_hex, from_hex),
+    { attributes = __ [@alert impure "Imperative programming is not permitted"];
+      items = stdlib.digest (bytes, subbytes) },
+    { attributes = __ [@alert input_output "Input/output is not permitted"];
+      items = stdlib.digest (channel, file, output, input) }
+  ]
+end
+
+module type Filename_alerting = sig
+  [%%include
+    stdlib.filename (!standard - (temp_file, open_temp_file, temp_dir, get_temp_dir_name, set_temp_dir_name)),
+    { attributes = __ [@alert input_output "Input/output is not permitted"];
+      items = stdlib.filename (temp_file, open_temp_file, temp_dir, get_temp_dir_name, set_temp_dir_name) }
+  ]
+end
+
+module type Float_alerting = sig
+  [%%include
+    stdlib.float (!standard - (Array, ArrayLabels)),
+    { attributes = __ [@alert impure "Arrays are not permitted"];
+      items = stdlib.float (Array, ArrayLabels) }
+  ]
+end
+
+module type Hashtbl_alerting = sig
+  [%%include
+    stdlib.hashtbl (hash, seeded_hash, hash_param, seeded_hash_param),
+    { attributes = __ [@alert impure "Hash tables are not permitted"];
+      items = stdlib.hashtbl (!standard - (hash, seeded_hash, hash_param, seeded_hash_param)) }
+  ]
+end
+
+module type List_alerting = sig
+  [%%include
+    stdlib.list (!standard - (memq, assq, assq_opt, mem_assq, remove_assq)),
+    { attributes = __ [@alert physical_eq "Physical comparisons are not permitted"];
+      items = stdlib.list (memq, assq, assq_opt, mem_assq, remove_assq) }
+  ]
+end
+
+module type ListLabels_alerting = sig
+  [%%include
+    stdlib.listLabels (!standard - (memq, assq, assq_opt, mem_assq, remove_assq)),
+    { attributes = __ [@alert physical_eq "Physical comparisons are not permitted"];
+      items = stdlib.listLabels (memq, assq, assq_opt, mem_assq, remove_assq) }
+  ]
+end
+
+module type MoreLabels_alerting = sig
+  [%%include
+    stdlib.moreLabels (Map, Set),
+    { attributes = __ [@alert impure "Hash tables are not permitted"];
+      items = stdlib.moreLabels (Hashtbl) }
+  ]
+end
+
+module type Printexc_alerting = sig
+  (* only to_string_default can be expected to be pure, not to_string *)
+  [%%include
+    stdlib.printexc (t, to_string_default),
+    { attributes = __ [@alert unsafe "This item is not permitted"];
+      items = stdlib.printexc (!standard - (t, to_string_default)) }
+  ]
+end
+
+module type Printf_alerting = sig
+  [%%include
+    stdlib.printf (sprintf, ksprintf),
+    { attributes = __ [@alert input_output "Input/output is not permitted"];
+      items = stdlib.printf (fprintf, printf, eprintf, ifprintf, kfprintf, ikfprintf) },
+    { attributes = __ [@alert impure "This imperative programming item is not permitted"];
+      items = stdlib.printf (bprintf, ibprintf, kbprintf, ikbprintf) }
+  ]
+end
+
+module type Scanf_alerting = sig
+  module Scanning : sig
+    type in_channel
+    type scanbuf
+  end
+  [%%include
+    stdlib.scanf (scanner, scanner_opt, Scan_failure, sscanf, sscanf_opt, ksscanf, sscanf_format, format_from_string, unescaped),
+    { attributes = __ [@alert input_output "Input/output is not permitted"];
+      items = stdlib.scanf (bscanf, bscanf_opt, scanf, scanf_opt, kscanf, bscanf_format) }
+  ]
+end
+
+module type Seq_alerting = sig
+  [%%include
+    stdlib.seq (!standard - (once, Forced_twice, to_dispenser)),
+    { attributes = __ [@alert impure "This imperative programming item is not permitted"];
+      items = stdlib.seq (once, Forced_twice, to_dispenser) }
+  ]
+end
+
+module type StringLabels_alerting = sig
+  [%%include
+    stdlib.stringLabels (!standard - (of_bytes, to_bytes, blit, unsafe_get, unsafe_blit)),
+    { attributes = __ [@alert impure "This imperative programming item is not permitted"];
+      items = stdlib.stringLabels (of_bytes, to_bytes, blit) }
+  ]
+end
+
+module type StdLabels_alerting = sig
+  module String : StringLabels_alerting
+  module [@alert list_op "List operations are not permitted"] List : ListLabels_alerting
+
+  [%%include
+    { attributes = __ [@alert impure "Arrays are not permitted"];
+      items = stdlib.stdLabels (Array) },
+    { attributes = __ [@alert impure "This imperative programming module is not permitted"];
+      items = stdlib.stdLabels (Bytes) }
+  ]
+end
+
+module type String_alerting = sig
+  [%%include
+    stdlib.string (!standard - (of_bytes, to_bytes, blit, unsafe_get, unsafe_blit)),
+    { attributes = __ [@alert impure "This imperative programming item is not permitted"];
+      items = stdlib.string (of_bytes, to_bytes, blit) }
+  ]
+end
+
+module type Uchar_alerting = sig
+  [%%include stdlib.uchar (!standard - (unsafe_of_int, unsafe_to_char))]
+end
+
+
+module type Stdlib_alerting = sig
 
   (** Derived from {!Stdlib}, but with items that can be restricted annotated with alerts.
 
@@ -195,143 +331,34 @@ module type Stdlib_alerting = sig
   (** {2 Completely safe modules} *)
 
   [%%include stdlib.stdlib (Bool, Complex, Either, Fun, Int, Int32, Int64, Lazy, Map, Nativeint, Option, Result, Set, Unit)]
-
   (* TODO: is Lazy *really* safe? *)
 
   (** {2 Partially safe modules} *)
 
-  module Char : sig
-    [%%include stdlib.char (!standard - unsafe_chr)]
-  end
+  module Char : Char_alerting
+  module Digest : Digest_alerting
+  module Filename : Filename_alerting
+  module Float : Float_alerting
+  module Hashtbl : Hashtbl_alerting
 
-  module Digest : sig
-    [%%include
-      stdlib.digest (t, compare, equal, string, substring, to_hex, from_hex),
-      { attributes = __ [@alert impure "Imperative programming is not permitted"];
-        items = stdlib.digest (bytes, subbytes) },
-      { attributes = __ [@alert input_output "Input/output is not permitted"];
-        items = stdlib.digest (channel, file, output, input) }
-    ]
-  end
+  module [@alert list_op "List operations are not permitted"] List : List_alerting
+  module [@alert list_op "List operations are not permitted"] ListLabels : ListLabels_alerting
 
-  module Filename : sig
-    [%%include
-      stdlib.filename (!standard - (temp_file, open_temp_file, temp_dir, get_temp_dir_name, set_temp_dir_name)),
-      { attributes = __ [@alert input_output "Input/output is not permitted"];
-        items = stdlib.filename (temp_file, open_temp_file, temp_dir, get_temp_dir_name, set_temp_dir_name) }
-    ]
-  end
+  module MoreLabels : MoreLabels_alerting
 
-  module Float : sig
-    [%%include
-      stdlib.float (!standard - (Array, ArrayLabels)),
-      { attributes = __ [@alert impure "Arrays are not permitted"];
-        items = stdlib.float (Array, ArrayLabels) }
-    ]
-  end
+  module Printexc : Printexc_alerting
 
-  module Hashtbl : sig
-    [%%include
-      stdlib.hashtbl (hash, seeded_hash, hash_param, seeded_hash_param),
-      { attributes = __ [@alert impure "Hash tables are not permitted"];
-        items = stdlib.hashtbl (!standard - (hash, seeded_hash, hash_param, seeded_hash_param)) }
-    ]
-  end
+  module Printf : Printf_alerting
+  module Scanf : Scanf_alerting
 
-  module [@alert list_op "List operations are not permitted"] List : sig
-    [%%include
-      stdlib.list (!standard - (memq, assq, assq_opt, mem_assq, remove_assq)),
-      { attributes = __ [@alert physical_eq "Physical comparisons are not permitted"];
-        items = stdlib.list (memq, assq, assq_opt, mem_assq, remove_assq) }
-    ]
-  end
+  module [@alert list_op "List (and sequence) operations are not permitted"] Seq : Seq_alerting
 
-  module [@alert list_op "List operations are not permitted"] ListLabels : sig
-    [%%include
-      stdlib.listLabels (!standard - (memq, assq, assq_opt, mem_assq, remove_assq)),
-      { attributes = __ [@alert physical_eq "Physical comparisons are not permitted"];
-        items = stdlib.listLabels (memq, assq, assq_opt, mem_assq, remove_assq) }
-    ]
-  end
+  module StdLabels : StdLabels_alerting
 
-  module MoreLabels : sig
-    [%%include
-      stdlib.moreLabels (Map, Set),
-      { attributes = __ [@alert impure "Hash tables are not permitted"];
-        items = stdlib.moreLabels (Hashtbl) }
-    ]
-  end
+  module String : String_alerting
+  module StringLabels : StringLabels_alerting
 
-  module Printexc : sig
-    (* only to_string_default can be expected to be pure, not to_string *)
-    [%%include
-      stdlib.printexc (t, to_string_default),
-      { attributes = __ [@alert unsafe "This item is not permitted"];
-        items = stdlib.printexc (!standard - (t, to_string_default)) }
-    ]
-  end
-
-  module Printf : sig
-    [%%include
-      stdlib.printf (sprintf, ksprintf),
-      { attributes = __ [@alert input_output "Input/output is not permitted"];
-        items = stdlib.printf (fprintf, printf, eprintf, ifprintf, kfprintf, ikfprintf) },
-      { attributes = __ [@alert impure "This imperative programming item is not permitted"];
-        items = stdlib.printf (bprintf, ibprintf, kbprintf, ikbprintf) }
-    ]
-  end
-
-  module Scanf : sig
-    module Scanning : sig
-      type in_channel
-      type scanbuf
-    end
-    [%%include
-      stdlib.scanf (scanner, scanner_opt, Scan_failure, sscanf, sscanf_opt, ksscanf, sscanf_format, format_from_string, unescaped),
-      { attributes = __ [@alert input_output "Input/output is not permitted"];
-        items = stdlib.scanf (bscanf, bscanf_opt, scanf, scanf_opt, kscanf, bscanf_format) }
-    ]
-  end
-
-  module [@alert list_op "List (and sequence) operations are not permitted"] Seq : sig
-    [%%include
-      stdlib.seq (!standard - (once, Forced_twice, to_dispenser)),
-      { attributes = __ [@alert impure "This imperative programming item is not permitted"];
-        items = stdlib.seq (once, Forced_twice, to_dispenser) }
-    ]
-  end
-
-  module StdLabels : sig
-    [%%include
-      stdlib.stdLabels (String),
-      { attributes = __ [@alert list_op "List operations are not permitted"];
-        items = stdlib.stdLabels (List) },
-      { attributes = __ [@alert impure "Arrays are not permitted"];
-        items = stdlib.stdLabels (Array) },
-      { attributes = __ [@alert impure "This imperative programming module is not permitted"];
-        items = stdlib.stdLabels (Bytes) }
-    ]
-  end
-
-  module String : sig
-    [%%include
-      stdlib.string (!standard - (of_bytes, to_bytes, blit, unsafe_get, unsafe_blit)),
-      { attributes = __ [@alert impure "This imperative programming item is not permitted"];
-        items = stdlib.string (of_bytes, to_bytes, blit) }
-    ]
-  end
-
-  module StringLabels : sig
-    [%%include
-      stdlib.stringLabels (!standard - (of_bytes, to_bytes, blit, unsafe_get, unsafe_blit)),
-      { attributes = __ [@alert impure "This imperative programming item is not permitted"];
-        items = stdlib.stringLabels (of_bytes, to_bytes, blit) }
-    ]
-  end
-
-  module Uchar : sig
-    [%%include stdlib.uchar (!standard - (unsafe_of_int, unsafe_to_char))]
-  end
+  module Uchar : Uchar_alerting
 
   (** {2 Imperative programming modules} *)
 
@@ -360,4 +387,5 @@ module type Stdlib_alerting = sig
 
 end
 
-module _ : Stdlib_alerting = Stdlib (* sanity check *)
+(** [Stdlib], but with the above module type. *)
+module Stdlib_alerting : Stdlib_alerting = Stdlib
