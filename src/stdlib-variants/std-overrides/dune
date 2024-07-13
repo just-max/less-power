@@ -1,0 +1,4 @@
+(library
+ (name std_overrides)
+ (public_name less-power.std-overrides)
+ (libraries stdlib_alerts stdlib_components))

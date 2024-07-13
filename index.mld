@@ -8,7 +8,12 @@ This framework consists of a number of libraries and executables for testing unt
 
 The following public components are included in the package:
 
-{!modules: Ast_check Stdlib_variants Test_lib Test_runner}
+{!modules: Ast_check Test_lib Test_runner}
+
+{{!page-variants_and_overrides} [Stdlib] variants and overrides}:
+{!modules: Stdlib_alerts Stdlib_components Overrides}
+
+{1 Internal Components}
 
 The following components are intended for use within framework code only:
 

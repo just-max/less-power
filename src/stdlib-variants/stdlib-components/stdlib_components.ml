@@ -1,5 +1,5 @@
 (** Adapted from [Stdlib], with different components in different modules. In particular,
-    a safe (pure) subset of OCaml features can be enabled by importing a subset
+    a safe (pure) subset of OCaml features can be enabled by opening a subset
     of modules defined here. *)
 
 module Exceptions = struct
@@ -417,3 +417,26 @@ module Exit = struct
 end
 
 module SafeAliases = Stdlib_aliases.SafeAliases
+
+module Stdlib_safe = struct
+  (** [SAFE] Everything safe from the standard library, including
+      everything safe from sub-modules of [Stdlib].*)
+
+  include Exceptions
+  include Composition
+  include Debugging
+  include Comparisons
+  include BooleanOperations
+  include IntegerOperations
+  include FloatingPointOperations
+  include StringOperations
+  include CharOperations
+  include UnitOperations
+  include PairOperations
+  include Result
+  include StringConversion
+  include ListOperations
+  include Formats
+
+  include SafeAliases
+end
