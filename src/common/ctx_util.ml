@@ -72,11 +72,7 @@ let timed : _ t = fun k ->
   | Error _ as e, _ -> e
   | Ok r, t -> Ok (r, t)
 
-let lock_mutex m : _ t = fun k ->
-  let _ = Mutex.lock m in
-  let result = k () in
-  let _ = Mutex.unlock m in
-  result
+let lock_mutex m : _ t = Mutex.protect m
 
 let capture_exceptions ?(filter = Fun.const true) () : _ t = fun k ->
   match k () with
