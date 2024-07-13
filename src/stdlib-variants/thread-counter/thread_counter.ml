@@ -44,6 +44,8 @@ type threadset = unit ThreadH.t
 
 module Counter = struct
 
+  open Common.Ctx_util
+
   type state = Running | Stopped | Overflowed
 
   type threadgroup = {
@@ -59,7 +61,8 @@ module Counter = struct
   let create_thread ?group cnt f x =
     d_ "create_thread";
 
-    Mutex.lock cnt.mut;
+    let< _ = lock_mutex cnt.mut in
+
     let group =
       match group with
       | Some g -> g
@@ -74,17 +77,15 @@ module Counter = struct
             Fun.protect
               (fun () -> f x)
               ~finally:(fun () ->
-                Mutex.lock cnt.mut;
+                let< _ = lock_mutex cnt.mut in
                 let tid = Thread.self () in
                 ThreadH.remove group.running tid;
                 ThreadH.remove cnt.groups tid;
-                Mutex.unlock cnt.mut;
                 d_ "thread#%d finished" Thread.(self () |> id)))
           ()
       in
       ThreadH.replace cnt.groups tid group;
       ThreadH.replace group.running tid ();
-      Mutex.unlock cnt.mut;
       tid
     in
 
@@ -93,13 +94,13 @@ module Counter = struct
         if ThreadH.length group.running >= group.max_threads then (
           group.state <- Overflowed;
           Condition.broadcast group.overflow;
-          Mutex.unlock cnt.mut;
+          (* Mutex.unlock cnt.mut; *)
           Thread.self ()
           (* raise? *)
           (* raise StopThread *))
         else make_thread ()
     | Overflowed | Stopped ->
-        Mutex.unlock cnt.mut (* raise? *);
+        (* Mutex.unlock cnt.mut (* raise? *); *)
         Thread.self ()
   (* raise StopThread *)
 
@@ -119,17 +120,15 @@ module Counter = struct
 
   let wait_for_overflow group =
     d_ "wait_for_overflow";
-    Mutex.lock group.owner.mut;
+    let< _ = lock_mutex group.owner.mut in
     while not (group.state = Overflowed) do
       Condition.wait group.overflow group.owner.mut
-    done;
-    Mutex.unlock group.owner.mut
+    done
 
   let set_stopped group =
     d_ "set_stopped";
-    Mutex.lock group.owner.mut;
-    if group.state = Running then group.state <- Stopped;
-    Mutex.unlock group.owner.mut
+    let< _ = lock_mutex group.owner.mut in
+    if group.state = Running then group.state <- Stopped
 
   let join ~timeout ?(allowed = 0) group =
     d_ "join";
@@ -156,28 +155,26 @@ module Counter = struct
     create_thread ~group counter
       (fun () ->
         let r = Some (try Ok (f x) with e -> Error e) in
-        Mutex.lock mut;
+        let< _ = lock_mutex mut in
         result := r;
-        Condition.signal task_done;
-        Mutex.unlock mut;
-        ())
+        Condition.signal task_done)
       ()
     |> ignore;
 
     Thread.create
       (fun () ->
         wait_for_overflow group;
-        Mutex.lock mut;
-        Condition.signal task_done;
-        Mutex.unlock mut)
+        let< _ = lock_mutex mut in
+        Condition.signal task_done)
       ()
     |> ignore;
   
-    Mutex.lock mut;
-    while not (Option.is_some !result || group.state = Overflowed) do
-      Condition.wait task_done mut
-    done;
-    Mutex.unlock mut;
+    let _ =
+      let< _ = lock_mutex mut in
+      while not (Option.is_some !result || group.state = Overflowed) do
+        Condition.wait task_done mut
+      done
+    in
   
     let remaining = join ~allowed:max_leftover ~timeout:join_timeout group in
   

@@ -1,4 +1,4 @@
 (library
  (name thread_counter)
  (public_name less-power.thread-counter)
- (libraries mtime mtime.clock.os threads))
+ (libraries common mtime mtime.clock.os threads))
