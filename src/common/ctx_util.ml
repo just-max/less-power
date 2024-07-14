@@ -1,10 +1,6 @@
 (** Context managers, loosely inspired by Python *)
 
-(** Exception and its associated (raw) backtrace. *)
-type exn_info = {
-  exn : exn ;
-  backtrace : Printexc.raw_backtrace ;
-}
+type exn_info = Util.exn_info
 
 (** A context manager of type [('a, 'b, 'c) t] takes a continuation, and
     should feed the continuation a value of type ['a]. Once the continuation
@@ -18,16 +14,7 @@ type ('a, 'b, 'c) t = ('a -> ('b, exn_info) result) -> ('c, exn_info) result
 
 (** [with_context cm f] runs [f] in the context manager [cm] *)
 let with_context (cm : _ t) f =
-  let k x =
-    try Ok (f x)
-    with exn ->
-      let backtrace = Printexc.get_raw_backtrace () in
-      Error { exn; backtrace }
-  in
-  match cm k with
-  | Ok x -> x
-  | Error { exn ; backtrace } ->
-      Printexc.raise_with_backtrace exn backtrace
+  cm (Util.try_to_result f) |> Util.unresult_exn
 
 (** Let-syntax for {!with_context} *)
 let ( let< ) = with_context
