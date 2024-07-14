@@ -3,6 +3,7 @@
 (** Waits for the given process or times out. *)
 let wait_pid_timeout t pid =
   let open Ctx_util in
+  let open Ctx_util.Syntax in
   let< () = sigprocmask Unix.SIG_BLOCK [Sys.sigchld] in
 
   let exception Sigchld in
@@ -98,6 +99,7 @@ let build_env =
     Note: uses temporary files provided by {!Filename}. *)
 let p_run ?timeout:timeout_desc ?input ?(args = []) ?(env = []) command =
   let open Ctx_util in
+  let open Ctx_util.Syntax in
 
   let env =
     Array.append

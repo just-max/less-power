@@ -28,6 +28,7 @@ let assert_equal
     expected_f actual_f =
   let open Result in
   let open Ctx_util in
+  let open Ctx_util.Syntax in
 
   let report msg =
     match context with None -> msg | Some c -> c ^ "\n" ^ msg

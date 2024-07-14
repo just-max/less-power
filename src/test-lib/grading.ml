@@ -191,13 +191,13 @@ let fold_tree_down f = fst (fold_down f)
 let fold_forest_down f = snd (fold_down f)
 
 let read_tree path =
-  let open Common.Ctx_util in
+  let open Common.Ctx_util.Syntax in
   let< ch = In_channel.with_open_bin path in
   let xml_in = Xmlm.make_input (`Channel ch) in
   in_tree xml_in
 
 let write_tree dtd tree path =
-  let open Common.Ctx_util in
+  let open Common.Ctx_util.Syntax in
   let< ch = Out_channel.with_open_bin path in
   let xml_out = Xmlm.make_output (`Channel ch) in
   out_tree xml_out (dtd, tree)
