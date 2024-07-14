@@ -1,7 +1,5 @@
 (** Context managers, loosely inspired by Python *)
 
-type exn_info = Util.exn_info
-
 (** A context manager of type [('a, 'b, 'c) t] takes a continuation, and
     should feed the continuation a value of type ['a]. Once the continuation
     returns with either a [Ok of 'b] or an {!exn_info}, the continuation should
@@ -10,14 +8,16 @@ type exn_info = Util.exn_info
 
     This representation has the advantage that some existing functions library
     already implement this type (e.g. {!In_channel.with_open_text}). *)
-type ('a, 'b, 'c) t = ('a -> ('b, exn_info) result) -> ('c, exn_info) result
+type ('a, 'b, 'c) t = ('a -> ('b, Util.exn_info) result) -> ('c, Util.exn_info) result
 
 (** [with_context cm f] runs [f] in the context manager [cm] *)
 let with_context (cm : _ t) f =
   cm (Util.try_to_result f) |> Util.unresult_exn
 
-(** Let-syntax for {!with_context} *)
-let ( let< ) = with_context
+module Syntax = struct
+  (** Let-syntax for {!with_context} *)
+  let ( let< ) = with_context
+end
 
 (* {1 Context managers} *)
 
@@ -64,7 +64,7 @@ let lock_mutex m : _ t = Mutex.protect m
 let capture_exceptions ?(filter = Fun.const true) () : _ t = fun k ->
   match k () with
   | Ok x -> Ok (Ok x)
-  | Error exn_info when filter exn_info.exn -> Ok (Error exn_info)
+  | Error exn_info when filter exn_info.Util.exn -> Ok (Error exn_info)
   | Error exn_info -> Error exn_info
 
 let empty_context x f : _ t = fun k -> Result.map f (k x)

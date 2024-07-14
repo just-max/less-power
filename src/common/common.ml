@@ -7,7 +7,3 @@ module Pp_util = Pp_util
 module Path_util = Path_util
 module Ctx_util = Ctx_util
 module P_run = P_run
-
-(* module Syntax = Syntax *)
-
-(* {!modules: Util Pp_util Path_util Ctx_util P_run} *)

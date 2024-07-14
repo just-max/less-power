@@ -2,7 +2,7 @@
 
 open Task
 open Common
-open Ctx_util
+open Ctx_util.Syntax
 open Util
 
 let f = Printf.sprintf
