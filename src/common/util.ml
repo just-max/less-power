@@ -18,7 +18,7 @@ let uncons = function [] -> None | x :: xs -> Some (x, xs)
 
 let unsnoc xs = uncons (List.rev xs) |> Option.map (fun (x, xs) -> List.rev xs, x)
 
-(** Same as {!List.equal, but allows lists of different types} *)
+(** Same as {!List.equal}, but allows lists of different types *)
 let rec list_equal eq l1 l2 =
   match l1, l2 with
   | [], [] -> true

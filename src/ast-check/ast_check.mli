@@ -80,7 +80,7 @@ val file_violations :
     [check] matches (default: [.ml] ending). Pass each (possibly empty) list of
     violations to the callback; see the note in {!pp_violation}.
 
-    The [follow] argument (default: {{!FilePath.Follow}[Follow]}) only applies to directories;
+    The [follow] argument (default: {{!FileUtil.Follow}[Follow]}) only applies to directories;
     symlinks to files are always read. *)
 val path_violations :
   ?follow:FileUtil.action_link ->

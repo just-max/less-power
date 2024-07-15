@@ -2,12 +2,13 @@
 
 (** A context manager of type [('a, 'b, 'c) t] takes a continuation, and
     should feed the continuation a value of type ['a]. Once the continuation
-    returns with either a [Ok of 'b] or an {!exn_info}, the continuation should
-    perform cleanup, and may suppress the exception by producing a suitable
-    result (of type ['c]) instead. Often, ['b = 'c].
+    returns with either a ['b] (in {!Ok}) or an {{!Util.exn_info}[exn_info]} (in {!Error}),
+    the continuation should perform cleanup, and may suppress the exception by
+    producing a suitable result (of type ['c]) instead. Often, ['b = 'c].
 
-    This representation has the advantage that some existing functions library
-    already implement this type (e.g. {!In_channel.with_open_text}). *)
+    This representation has the advantage that existing context managers of
+    type [('a -> 'b) -> 'b] (where ['a] can be some concrete type like [unit])
+    already conform to this type (e.g. {!In_channel.with_open_text} and {!Mutex.protect}). *)
 type ('a, 'b, 'c) t = ('a -> ('b, Util.exn_info) result) -> ('c, Util.exn_info) result
 
 (** [with_context cm f] runs [f] in the context manager [cm] *)

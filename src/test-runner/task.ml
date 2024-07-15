@@ -4,7 +4,7 @@
     building student code, checking for forbidden syntax elements, or
     running the generated test executable.
 
-    This module provides tasks as trees (type {!Tree.t}), so tasks can be
+    This module provides tasks as trees (type {!type-tree}), so tasks can be
     more easily re-used and composed.
 
     Running tasks automatically handles exceptions and timeouts.

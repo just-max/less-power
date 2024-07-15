@@ -19,7 +19,7 @@ Modules that are intended to be opened at the top level (what the compiler calls
 Usually this contains a module called [Stdlib], as well as the {i contents} of that module
 (e.g. via [open]). It may also contain e.g. a module called [Thread].
 
-{!modules: Overrides}
+{!modules: Std_overrides}
 
 {1 Implementation modules}
 

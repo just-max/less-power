@@ -11,7 +11,7 @@ The following public components are included in the package:
 {!modules: Ast_check Test_lib Test_runner}
 
 {{!page-variants_and_overrides} [Stdlib] variants and overrides}:
-{!modules: Stdlib_alerts Stdlib_components Overrides}
+{!modules: Stdlib_alerts Stdlib_components Std_overrides}
 
 {1 Internal Components}
 

@@ -31,7 +31,7 @@ module Stdlib_safe = struct
 end
 
 (** Puts an alerting [Stdlib] into scope,
-    from {!Stdlib_alerts.Stdlib_alerting}. *)
+    from {!Stdlib_alerts.module-type-Stdlib_alerting}. *)
 module Stdlib_alerting = struct
 
   module Stdlib = Stdlib_alerts.Stdlib_alerting

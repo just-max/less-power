@@ -1,6 +1,6 @@
 (** Variants of {!Stdlib}, but with signature items that can be restricted annotated with alerts.
 
-There is one "variant" of the {!Stdlib} interface implemented, namely {!Stdlib_alerting}.
+There is one "variant" of the {!Stdlib} interface implemented, namely {!module-type-Stdlib_alerting}.
 Alerts are placed on signature items (types, values, and modules) so that those items can be restricted.
 
 The following alerts are used:
@@ -16,7 +16,7 @@ By default, for a "safe" sandbox environment, the following alerts should be ena
 [physical_eq], [input_output], [impure], [unsafe]. The remaining alerts are intended for
 specific situtations and exercises where more needs to be restricted.
 
-Similar modules for {Thread} and {Event} are in {!Threads_alerts} to avoid unnecessary dependencies.
+Similar modules for [Thread] and [Event] are in {!Threads_alerts} to avoid unnecessary dependencies.
 *)
 
 [@@@alert "-physical_eq"]
@@ -182,7 +182,8 @@ module type Stdlib_alerting = sig
 
   [%%include stdlib.stdlib (( = ), ( <> ), ( < ), ( > ), ( <= ), ( >= ), compare, min, max) ]
 
-  (** {1 Physical comparisons} The impure [(==)] and [(!=)] *)
+  (** {1 Physical comparisons}
+      The impure [(==)] and [(!=)] *)
 
   [%%include
     {
