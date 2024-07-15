@@ -55,7 +55,7 @@ let assert_equal
     match wrap actual_f with
     | Ok (Some x) -> Ok x
     | Ok None -> Error (report @@ "Your submission timed out")
-    | Error { exn = e; _ } ->
+    | Error Util.{ exn = e; _ } ->
         match is_user_fail e with
         | Some s -> Error (report s)
         | None -> Error (error_msg @@ Printexc.to_string e)
