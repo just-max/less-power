@@ -59,8 +59,6 @@ let timed : _ t = fun k ->
   | Error _ as e, _ -> e
   | Ok r, t -> Ok (r, t)
 
-let lock_mutex m : _ t = Mutex.protect m
-
 let capture_exceptions ?(filter = Fun.const true) () : _ t = fun k ->
   match k () with
   | Ok x -> Ok (Ok x)

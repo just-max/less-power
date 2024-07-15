@@ -31,7 +31,7 @@ module Counter = struct
   open Ctx_util
   open Ctx_util.Syntax
 
-  let lock_if b m = if b then lock_mutex m else empty_context' ()
+  let lock_if b m = if b then Mutex.protect m else empty_context' ()
 
   (** Note: we enforce that spawned threads don't raise uncaught exceptions,
      which in theory changes the semantics of threads. The value of being
@@ -61,7 +61,7 @@ module Counter = struct
     Condition.broadcast group.finished
 
   let try_finish group fin =
-    let< _ = lock_mutex group.owner.mut in
+    let< _ = Mutex.protect group.owner.mut in
     if group.state = Running then
     finish ~lock:false group fin
 
@@ -81,7 +81,7 @@ module Counter = struct
                 Util.try_to_result f x
                 |> Result.iter_error (fun e -> try_finish group (Uncaught e)))
               ~finally:(fun () ->
-                let< _ = lock_mutex cnt.mut in
+                let< _ = Mutex.protect cnt.mut in
                 let tid = Thread.self () in
                 group.thread_count <- group.thread_count - 1;
                 ThreadH.remove cnt.groups tid;
@@ -121,7 +121,7 @@ module Counter = struct
     }
 
   let get_thread_count group =
-    let< _ = lock_mutex group.owner.mut in group.thread_count
+    let< _ = Mutex.protect group.owner.mut in group.thread_count
 
   (** Wait for threads in a group to complete. Group must be finished first. *)
   let join_group ~leftover_thread_limit ~timeout group =
@@ -129,7 +129,7 @@ module Counter = struct
     d_ "join_group";
 
     let _ =
-      let< _ = lock_mutex group.owner.mut in
+      let< _ = Mutex.protect group.owner.mut in
       if group.state = Running then failwith "join_group: still running"
     in
 
@@ -164,7 +164,7 @@ module Counter = struct
         | Running -> d_ "still running"; Condition.wait group.finished cnt.mut; loop ()
         | Finished fin -> fin
       in
-      let< _ = lock_mutex cnt.mut in loop ()
+      let< _ = Mutex.protect cnt.mut in loop ()
     in
 
     let leftover_count =
