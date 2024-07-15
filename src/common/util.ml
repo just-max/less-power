@@ -50,8 +50,19 @@ let string_contains ~needle haystack =
     returns [["c"; "ef"]] *)
 let ( ~$ ) = ( |> )
 
-let try_to_result f x = try Ok (f x) with e -> Error e
-let unresult_exn = function Ok x -> x | Error e -> raise e
+(** Exception and its associated (raw) backtrace. *)
+type exn_info = {
+  exn : exn ;
+  backtrace : Printexc.raw_backtrace ;
+}
+
+let raise_exn_info info = Printexc.raise_with_backtrace info.exn info.backtrace
+
+let try_to_result f x =
+  try Ok (f x)
+  with exn -> Error { exn; backtrace = Printexc.get_raw_backtrace () }
+
+let unresult_exn = function Ok x -> x | Error e -> raise_exn_info e
 
 let run_main main =
   Sys.argv
@@ -94,7 +105,7 @@ let timeout_unix ?(timer = Unix.ITIMER_REAL) t f x =
   let r =
     try
       Unix.setitimer timer { it_value = t_float; it_interval = 0. } |> ignore ;
-      let r0 = try Ok (Some (f x)) with e when e <> Timeout -> Error e in
+      let r0 = try Ok (Some (f x)) with e when e <> Timeout -> Error { exn = e; backtrace = Printexc.get_raw_backtrace () } in
       stop_timer () |> ignore;
       r0
     with Timeout -> Ok None

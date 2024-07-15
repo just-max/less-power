@@ -1,11 +1,5 @@
 (** Context managers, loosely inspired by Python *)
 
-(** Exception and its associated (raw) backtrace. *)
-type exn_info = {
-  exn : exn ;
-  backtrace : Printexc.raw_backtrace ;
-}
-
 (** A context manager of type [('a, 'b, 'c) t] takes a continuation, and
     should feed the continuation a value of type ['a]. Once the continuation
     returns with either a [Ok of 'b] or an {!exn_info}, the continuation should
@@ -14,23 +8,16 @@ type exn_info = {
 
     This representation has the advantage that some existing functions library
     already implement this type (e.g. {!In_channel.with_open_text}). *)
-type ('a, 'b, 'c) t = ('a -> ('b, exn_info) result) -> ('c, exn_info) result
+type ('a, 'b, 'c) t = ('a -> ('b, Util.exn_info) result) -> ('c, Util.exn_info) result
 
 (** [with_context cm f] runs [f] in the context manager [cm] *)
 let with_context (cm : _ t) f =
-  let k x =
-    try Ok (f x)
-    with exn ->
-      let backtrace = Printexc.get_raw_backtrace () in
-      Error { exn; backtrace }
-  in
-  match cm k with
-  | Ok x -> x
-  | Error { exn ; backtrace } ->
-      Printexc.raise_with_backtrace exn backtrace
+  cm (Util.try_to_result f) |> Util.unresult_exn
 
-(** Let-syntax for {!with_context} *)
-let ( let< ) = with_context
+module Syntax = struct
+  (** Let-syntax for {!with_context} *)
+  let ( let< ) = with_context
+end
 
 (* {1 Context managers} *)
 
@@ -75,7 +62,7 @@ let timed : _ t = fun k ->
 let capture_exceptions ?(filter = Fun.const true) () : _ t = fun k ->
   match k () with
   | Ok x -> Ok (Ok x)
-  | Error exn_info when filter exn_info.exn -> Ok (Error exn_info)
+  | Error exn_info when filter exn_info.Util.exn -> Ok (Error exn_info)
   | Error exn_info -> Error exn_info
 
 let empty_context x f : _ t = fun k -> Result.map f (k x)

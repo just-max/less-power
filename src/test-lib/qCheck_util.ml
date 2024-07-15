@@ -28,6 +28,7 @@ let assert_equal
     expected_f actual_f =
   let open Result in
   let open Ctx_util in
+  let open Ctx_util.Syntax in
 
   let report msg =
     match context with None -> msg | Some c -> c ^ "\n" ^ msg
@@ -54,7 +55,7 @@ let assert_equal
     match wrap actual_f with
     | Ok (Some x) -> Ok x
     | Ok None -> Error (report @@ "Your submission timed out")
-    | Error { exn = e; _ } ->
+    | Error Util.{ exn = e; _ } ->
         match is_user_fail e with
         | Some s -> Error (report s)
         | None -> Error (error_msg @@ Printexc.to_string e)

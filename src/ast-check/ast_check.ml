@@ -255,7 +255,7 @@ let file_violations ?prohibited ?limit path =
      expose the functionality we need to do this ourselves) *)
   Ocaml_common.Pparse.parse_implementation ~tool_name:"lp-ast-check" path |> ignore;
 
-  let open Common.Ctx_util in
+  let open Common.Ctx_util.Syntax in
   let structure =
     let< ch = In_channel.with_open_text path in
     let lexbuf = Lexing.from_channel ch in

@@ -15,7 +15,7 @@ let loc = Location.none (* default location for metaquot *)
 module B = Ast_builder_Make (struct let loc = Location.none end)
 
 let parse_interface path =
-  let open Common.Ctx_util in
+  let open Common.Ctx_util.Syntax in
   let< ch = In_channel.with_open_text path in
   let lexbuf = Lexing.from_channel ch in
   Lexing.set_filename lexbuf path;

@@ -148,6 +148,7 @@ and run_tree : type a b. a st_in -> (a, b) tree -> b st_out * summary =
   in
 
   let open Ctx_util in
+  let open Ctx_util.Syntax in
 
   let result, t_elapsed =
     let< () = timed in
