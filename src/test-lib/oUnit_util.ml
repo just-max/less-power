@@ -17,11 +17,11 @@ let default_rand =
     by interrupting shrinking and showing the smallest value found so far
     once the timeout expires. *)
 let of_qcheck ?(timeout = default_qcheck_timeout) (QCheck2.Test.Test cell) =
-  Printexc.record_backtrace true;
   let module T = QCheck2.Test in
   let name = T.get_name cell in
   let count = T.get_count cell in
   let test_fun _ =
+    Printexc.record_backtrace false;
     let start = Mtime_clock.counter () in
     let passed = ref 0 in
     let last_shrunk = ref None in
