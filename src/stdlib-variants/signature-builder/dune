@@ -91,3 +91,13 @@
     %{lib:stdlib:uchar.mli}
     %{lib:stdlib:unit.mli}
     %{lib:stdlib:weak.mli}))))
+
+(rule
+ (target threads_signature_info.ml)
+ (action
+  (with-stdout-to
+   %{target}
+   (run
+    lp-make-interface-description
+    %{lib:stdlib:threads/event.mli}
+    %{lib:stdlib:threads/thread.mli}))))
