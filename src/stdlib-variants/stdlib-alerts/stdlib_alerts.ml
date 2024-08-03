@@ -57,10 +57,18 @@ module type Float_alerting = sig
 end
 
 module type Hashtbl_alerting = sig
+  type[@alert impure "Hash tables are not permitted"] ('a, 'b) t = ('a, 'b) Hashtbl.t
+  type[@alert impure "Hash tables are not permitted"] statistics = Hashtbl.statistics = {
+    num_bindings: int;
+    num_buckets: int;
+    max_bucket_length: int;
+    bucket_histogram: int array;
+  }
+
   [%%include
     stdlib.hashtbl (hash, seeded_hash, hash_param, seeded_hash_param),
     { attributes = __ [@alert impure "Hash tables are not permitted"];
-      items = stdlib.hashtbl (!standard - (hash, seeded_hash, hash_param, seeded_hash_param)) }
+      items = stdlib.hashtbl (!standard - (t, statistics, hash, seeded_hash, hash_param, seeded_hash_param)) }
   ]
 end
 
@@ -89,11 +97,24 @@ module type MoreLabels_alerting = sig
 end
 
 module type Printexc_alerting = sig
+  type[@alert unsafe "This item is not permitted"] raw_backtrace = Printexc.raw_backtrace
+  type[@alert unsafe "This item is not permitted"] raw_backtrace_slot = Printexc.raw_backtrace_slot
+  type[@alert unsafe "This item is not permitted"] backtrace_slot = Printexc.backtrace_slot
+  type[@alert unsafe "This item is not permitted"] location = Printexc.location = {
+    filename : string;
+    line_number : int;
+    start_char : int;
+    end_char : int;
+  }
+
   (* only to_string_default can be expected to be pure, not to_string *)
   [%%include
     stdlib.printexc (t, to_string_default),
     { attributes = __ [@alert unsafe "This item is not permitted"];
-      items = stdlib.printexc (!standard - (t, to_string_default)) }
+      items = stdlib.printexc (
+        !standard
+        - (t, raw_backtrace, raw_backtrace_slot, backtrace_slot, location, to_string_default)
+      ) }
   ]
 end
 
@@ -120,8 +141,11 @@ module type Scanf_alerting = sig
 end
 
 module type Seq_alerting = sig
+  type 'a t = unit -> 'a node
+  and 'a node = 'a Seq.node = Nil | Cons of 'a * 'a t
+
   [%%include
-    stdlib.seq (!standard - (once, Forced_twice, to_dispenser)),
+    stdlib.seq (!standard - ([t; node], once, Forced_twice, to_dispenser)),
     { attributes = __ [@alert impure "This imperative programming item is not permitted"];
       items = stdlib.seq (once, Forced_twice, to_dispenser) }
   ]
@@ -156,7 +180,10 @@ module type String_alerting = sig
 end
 
 module type Uchar_alerting = sig
-  [%%include stdlib.uchar (!standard - (unsafe_of_int, unsafe_to_char))]
+  type t = Uchar.t [@@immediate]
+  type utf_decode = Uchar.utf_decode [@@immediate]
+
+  [%%include stdlib.uchar (!standard - (t, utf_decode @ {kind = "type"}, unsafe_of_int, unsafe_to_char))]
 end
 
 
@@ -233,8 +260,15 @@ module type Stdlib_alerting = sig
     log, log10, log1p, sin, sinh, asinh, sqrt, tan, tanh, atanh,
     ceil, floor, abs_float, copysign, mod_float, frexp, ldexp, modf,
     float, float_of_int, truncate, int_of_float, infinity, neg_infinity, nan,
-    max_float, min_float, epsilon_float, fpclass, classify_float
+    max_float, min_float, epsilon_float, classify_float
   )]
+
+  type fpclass = Stdlib.fpclass =
+    | FP_normal
+    | FP_subnormal
+    | FP_zero
+    | FP_infinite
+    | FP_nan
 
   (** {1 String operations}
       More in {!Stdlib.String} *)
@@ -273,10 +307,23 @@ module type Stdlib_alerting = sig
   (** {1 I/O operations}
       This is regular, unmocked, IO. *)
 
+  type[@alert input_output "Input/output is not permitted"] in_channel = Stdlib.in_channel
+  type[@alert input_output "Input/output is not permitted"] out_channel = Stdlib.out_channel
+  type[@alert input_output "Input/output is not permitted"] open_flag = Stdlib.open_flag =
+    | Open_rdonly
+    | Open_wronly
+    | Open_append
+    | Open_creat
+    | Open_trunc
+    | Open_excl
+    | Open_binary
+    | Open_text
+    | Open_nonblock
+
   [%%include {
     attributes = __ [@alert input_output "Input/output is not permitted"];
     items = stdlib.stdlib (
-      in_channel, out_channel, stdin, stdout, stderr,
+      stdin, stdout, stderr,
       (* Output functions on standard output *)
       print_char, print_string, print_bytes, print_int, print_float,
       print_endline, print_newline,
@@ -286,7 +333,7 @@ module type Stdlib_alerting = sig
       (* Input functions on standard input *)
       read_line, read_int_opt, read_int, read_float_opt, read_float,
       (* General output functions *)
-      open_flag, open_out, open_out_bin, open_out_gen, flush, flush_all,
+      open_out, open_out_bin, open_out_gen, flush, flush_all,
       output_char, output_string, output_bytes, output, output_substring,
       output_byte, output_binary_int, output_value, seek_out, pos_out,
       out_channel_length, close_out, close_out_noerr, set_binary_mode_out,
@@ -302,10 +349,12 @@ module type Stdlib_alerting = sig
 
   (** {1 References} *)
 
+  type 'a ref = 'a Stdlib.ref
+
   [%%include {
     attributes = __ [@alert impure "References are not permitted"];
     items = stdlib.stdlib (
-      ref @ { kind = "type" }, ref @ { kind = "value" },
+      ref @ { kind = "value" },
       ( ! ), ( := ), incr, decr
     )
   }]
@@ -313,7 +362,11 @@ module type Stdlib_alerting = sig
   (** {1 Result type}
       More in {!Stdlib.Result} *)
 
-  [%%include stdlib.stdlib result ]
+  (* If we just included result into the signature, it would define a new type,
+     which we would have to reference everywhere else. For example, we would
+     not be able to write [module Result = Result], since that would reference
+     the original definition.*)
+  type ('a, 'b) result = ('a, 'b) Stdlib.result = Ok of 'a | Error of 'b
 
   (** {1 Format strings}
       More in {!Stdlib.Scanf}, {!Stdlib.Printf}, and {!Stdlib.Format} *)
