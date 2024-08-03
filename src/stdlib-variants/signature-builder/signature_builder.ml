@@ -85,7 +85,13 @@ end
 type kind =
   Value | Type | Exception | Module | ModuleType | Class | ClassType
 
-type signature_item_pat = { names : longident_loc list; kind : kind option; loc : location }
+type signature_item_pat = {
+  names : (longident_loc * core_type option) list;
+  (** [core_type] for type equality *)
+
+  kind : kind option;
+  loc : location
+}
 
 type include_specs = include_spec list
 and include_spec =
@@ -198,13 +204,19 @@ module Parse = struct
           (List.map (fst %> Printf.sprintf "%S") options |> String.concat ", ")
 
   let signature_item_pat exp0 : signature_item_pat =
-    let p_ident exp =
+    let p_ident ~allow_record exp =
       match exp.pexp_desc with
       | Pexp_ident name | Pexp_construct (name, None) -> name
-      | _ -> Location.raise_errorf ~loc:exp.pexp_loc
+      | _ -> Location.raise_errorf ~loc:exp.pexp_loc "%s%s"
           "Expected an_identifier or an Uppercase_identifier"
+          (if allow_record then " or { name = ...; ... }" else "")
     in
-    let p_idents exp = List.map p_ident (list exp) in
+    let p_ident_spec exp =
+      match exp.pexp_desc with
+      (* | Pexp_record _ -> _ *) (* TODO: parse a record here *)
+      | _ -> (p_ident ~allow_record:true exp, None)
+    in
+    let p_ident_specs exp = List.map p_ident_spec (list exp) in
     let p_kind exp = match exp.pexp_desc with
       | Pexp_record (entries, None) ->
           let entries = List.map (fun (k, v) -> k.txt, v) entries in
@@ -215,8 +227,8 @@ module Parse = struct
     in
     (* empty list expression becomes a single name, not an empty list *)
     let p_names exp = match exp with
-        | [%expr ([%e? _] :: [%e? _]) ] -> p_idents exp
-        | _ -> [p_ident exp]
+        | [%expr ([%e? _] :: [%e? _]) ] -> p_ident_specs exp
+        | _ -> [p_ident_spec exp]
     in
     let names, kind = match exp0 with
       | [%expr [%e? names] @ [%e? args] ] -> p_names names, p_kind args
@@ -305,7 +317,7 @@ let match_kind k exp = match k, exp.psig_desc with
 
 let match_signature_item_pat (pat : signature_item_pat) sigi =
   (match pat.kind with Some k -> match_kind k sigi | None -> true)
-  && list_equal (fun p s -> match_lident_name p.txt s) pat.names (signature_item_names sigi)
+  && list_equal (fun p s -> match_lident_name p.txt s) (List.map fst pat.names) (signature_item_names sigi) (* TODO *)
 
 let eval_pat_ordered_set loc signature s =
   let indexed =
