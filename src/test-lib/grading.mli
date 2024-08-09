@@ -183,9 +183,11 @@ val extract_cleanup_file : ?cleanup_to:string -> string -> testsuites
 
 (** {2 Writing} *)
 
-val write_result : ?log_result:bool -> grading_result -> string -> unit
+val write_result : ?log_result:bool -> ?points_step_count:int -> grading_result -> string -> unit
 (** Write a grading result to file. If [log_result] is [true] (default),
-    print a human-readable summary of grading results to standard error. *)
+    print a human-readable summary of grading results to standard error.
+    If [points_step_count] is given, it is used in the error
+    message of the generated [points] tests. *)
 
 (** {2 Helpers} *)
 
