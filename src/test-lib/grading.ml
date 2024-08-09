@@ -349,8 +349,9 @@ let process_files ?cleanup ?grade ?log_result paths =
   match grade with
   | None -> ()
   | Some (g, points_step_count, grading_to) ->
-      let result = evaluate_grading ?points_step_count g (List.concat ts) in
-      write_result ?log_result ?points_step_count result grading_to
+      let points_step_count = points_step_count |> Option.value ~default:1 in
+      let result = evaluate_grading ~points_step_count g (List.concat ts) in
+      write_result ?log_result ~points_step_count result grading_to
 
 (* compat, deprecated *)
 let prettify_results ?grading path =
