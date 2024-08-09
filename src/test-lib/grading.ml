@@ -313,7 +313,7 @@ let align_tabs text =
 let mk_points ?points_step_count count ~passed =
   let open Junit.Testcase in
   let msg = match points_step_count with
-    | Some s -> Printf.sprintf "0/%(%f%)" (pprec 3) (1. /. float_of_int s)
+    | Some s -> Printf.sprintf "0/%(%f%)" (pprec s) (1. /. float_of_int s)
     | None -> "0"
   in
   List.init count @@ fun n ->
