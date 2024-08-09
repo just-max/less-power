@@ -33,11 +33,16 @@ let[@warning "-32"] is_fixed_query query =
 
 let parse_name = String.split_on_char ':'
 
+exception No_match of string
+let _ = Printexc.register_printer @@ function
+  | No_match q -> Some (Printf.sprintf "no match: pattern %S did not match any test cases" q)
+  | _ -> None
+
 let rec evaluate_criterion (tests : tests) = function
   | Passed query ->
       let q = parse_name query in
       let matched = List.filter (fun (test, _) -> matches_test ~query:q (parse_name test)) tests in
-      if matched = [] then raise Not_found; (* at least one test needs to match *)
+      if matched = [] then raise (No_match query); (* at least one test needs to match *)
       List.for_all snd matched
   | Failed query ->
       evaluate_criterion (List.map (fun (test, ok) -> (test, not ok)) tests) (Passed query)
@@ -125,8 +130,7 @@ let evaluate_grading ?(points_step_count = 1) grading tests =
       match (evaluate_criterion tests test_case, reason tests test_case) with
       | true, s -> { text = Printf.sprintf "%s: \t%(%f%)P \t%s\n" title pprec (pointf points) s; points; max_points }
       | false, s ->
-          { text = Printf.sprintf "%s: \t(%(%f%)P) \t%s\n" title pprec (pointf points) s; points = 0; max_points }
-      | exception _ -> { text = ""; points = 0; max_points })
+          { text = Printf.sprintf "%s: \t(%(%f%)P) \t%s\n" title pprec (pointf points) s; points = 0; max_points })
   | Group { title; items; max_points; skip } ->
       let results = List.map collect items in
       let points = List.fold_left (fun a b -> a + b.points) 0 results |> clamp_opt max_points in
