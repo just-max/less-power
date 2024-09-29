@@ -106,6 +106,12 @@ let implies antecedent consequent = OneOf [Not antecedent; consequent]
 let any_passed test_case = Not (Failed test_case)
 let any_failed test_case = Not (Passed test_case)
 
+let pprec points_step_count =
+  match points_step_count with
+  | 1 -> format_of_string "%.0f"
+  | 2 -> format_of_string "%.1f"
+  | _ -> format_of_string "%.2f"
+
 let evaluate_grading ?(points_step_count = 1) grading tests =
   let indent s =
     s |> String.split_on_char '\n'
@@ -113,12 +119,7 @@ let evaluate_grading ?(points_step_count = 1) grading tests =
     |> String.concat "\n"
   in
   let pointf points = float_of_int points /. float_of_int points_step_count in
-  let pprec =
-    match points_step_count with
-    | 1 -> format_of_string "%.0f"
-    | 2 -> format_of_string "%.1f"
-    | _ -> format_of_string "%.2f"
-  in
+  let pprec = pprec points_step_count in
   let rec collect (* tests *) = function
   | Points { title; test_case; points; reason } -> (
       let max_points = max points 0 in
@@ -309,16 +310,22 @@ let align_tabs text =
   lines |> List.map align_line
   |> List.map (String.concat "") |> String.concat "\n"
 
-let mk_points count ~passed =
+let mk_points ?points_step_count count ~passed =
   let open Junit.Testcase in
+  let msg = match points_step_count with
+    | Some s -> Printf.sprintf "0/%(%f%)" (pprec s) (1. /. float_of_int s)
+    | None -> "0"
+  in
   List.init count @@ fun n ->
       let name = Printf.sprintf "points:%d" n in
-      let mk = if n < passed then pass else failure "" ~typ:"points" in
+      let mk = if n < passed then pass else failure msg ~typ:"points" in
       mk ~name ~classname:"grading" ~time:0.
 
-let testsuite_of_result result =
+let testsuite_of_result ?points_step_count result =
   let open Junit in
-  let points = mk_points result.max_points ~passed:result.points in
+  let points =
+    mk_points ?points_step_count result.max_points ~passed:result.points
+  in
   let feedback =
     Testcase.failure result.text ~name:"feedback"
       ~typ:"feedback" ~classname:"grading" ~time:0.
@@ -327,11 +334,11 @@ let testsuite_of_result result =
   make ~name:"grading" ()
   |> add_testcases (feedback :: points)
 
-let write_result ?(log_result = true) result path =
-  let text = align_tabs result.text in
+let write_result ?(log_result = true) ?points_step_count result path =
+  let text = align_tabs (result : grading_result).text in
   if log_result then
     List.iter prerr_endline [ String.make 78 '='; text; String.make 78 '-' ];
-  let ts = testsuite_of_result { result with text } in
+  let ts = testsuite_of_result ?points_step_count { result with text } in
   Junit.to_file (Junit.make [ts]) path
 
 let grading_options ?points_step_count ~grading_to grading =
@@ -342,8 +349,9 @@ let process_files ?cleanup ?grade ?log_result paths =
   match grade with
   | None -> ()
   | Some (g, points_step_count, grading_to) ->
-      let result = evaluate_grading ?points_step_count g (List.concat ts) in
-      write_result ?log_result result grading_to
+      let points_step_count = points_step_count |> Option.value ~default:1 in
+      let result = evaluate_grading ~points_step_count g (List.concat ts) in
+      write_result ?log_result ~points_step_count result grading_to
 
 (* compat, deprecated *)
 let prettify_results ?grading path =
