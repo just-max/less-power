@@ -90,7 +90,7 @@ type signature_item_pat = { names : longident_loc list; kind : kind option; loc 
 type include_specs = include_spec list
 and include_spec =
   | Include_from of { from : longident_loc; items : signature_item_pat Ordered_set.t; loc : Location.t }
-  | Include_group of { attributes : attribute list; items : include_specs; }
+  | Include_group of { attributes : attribute list; items : include_specs }
 
 module Parse = struct
 
