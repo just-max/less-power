@@ -152,7 +152,8 @@ module Parse = struct
   {[type ('a, 'b) result = ('a, 'b) Stdlib.result = Ok of 'a | Error of 'b]}
   *)
 
-  (* TODO: make it possible to reference an existing type automatically *)
+  (* TODO: make it possible to reference an existing type automatically.
+     Challenge is deciding how to resolve the type to reference. *)
 
   let ordered_set =
     let open Ordered_set in
