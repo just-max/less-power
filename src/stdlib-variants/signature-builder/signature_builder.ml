@@ -2,7 +2,9 @@ open Ppxlib
 open Common.Util
 
 (** Library and PPX rewriter for building interfaces from existing interfaces
-    by selectively adding and removing interface items. *)
+    by selectively adding and removing interface items.
+
+    See {!Parse} for the full grammar for inclusion specifications. *)
 
 (** {1 Loading saved signatures} *)
 
@@ -87,10 +89,71 @@ type signature_item_pat = { names : longident_loc list; kind : kind option; loc 
 
 type include_specs = include_spec list
 and include_spec =
-  | Include_from of { from : longident_loc; items : signature_item_pat Ordered_set.t }
+  | Include_from of { from : longident_loc; items : signature_item_pat Ordered_set.t; loc : Location.t }
   | Include_group of { attributes : attribute list; items : include_specs }
 
 module Parse = struct
+
+  (**
+
+  Parser for include specifications.
+
+  To use the signature builder, first enable the PPX rewriter.
+  With dune, add the PPX rewriter to your component's [dune] file:
+  {@dune[(preprocess (pps less-power.signature-builder-ppx))]}
+  Then, within a signature, use an extension point to include signature items, for example:
+  {[
+  module type Foo : sig
+    [%%include stdlib.stdlib (fst, snd)]
+  end
+  ]}
+
+  Inclusion specifications can be more complex. The full grammar is as follows:
+
+  {@text[
+  include-specs := include-spec | '()' | '(' include-spec {',' include-spec} ')'
+  include-spec :=
+    | from-spec items-spec
+    | '{' 'items =' include-specs ';' ['attributes = __' {attribute} ';'] '}'
+  from-spec := (* qualified path to signature-info to take items from *)
+    lowercase-ident {'.' lowercase-ident}+
+  items-spec := (* ordered set of items *)
+    item-spec | '!standard' | items-spec '-' items-spec | '()' | '(' items-spec {',' items-spec} ')'
+  item-spec := item-names ['@' item-options]
+  item-names := item-name | '[' {item-name ';'}+ ']'
+  item-name := (* refer to values, types, modules, ... *)
+    lowercase-ident | capitalized-ident | '[]'
+  ]}
+
+  The following more complex example includes [t] and [to_string_default]
+  from the standard [Printexc] module, then also includes everything except
+  that type and that value, with each item given the [unsafe] attribute:
+
+  {[
+  [%%include
+    stdlib.printexc (t, to_string_default),
+    { attributes = __ [@alert unsafe "This item is not permitted"];
+      items = stdlib.printexc (!standard - (t, to_string_default)) }
+  ]
+  ]}
+
+  To disambiguate signature items of different kinds with the same name,
+  use the syntax [identifier @ { kind = "kind"}], where [kind] is one of
+  [value], [type], [exception], [module], [module-type]. For example, to
+  include the standard [ref] function:
+
+  {[[%%include stdlib.stdlib (ref @ { kind = "value" })]]}
+
+  The preprocessor will refuse to include types which don't include a type
+  equation (e.g. abstract types and types defined only by constructors). This
+  is because this will create copies of the type, which is generally not the intention.
+  In this case, types must be defined manually without the inclusion mechanism, e.g.:
+
+  {[type ('a, 'b) result = ('a, 'b) Stdlib.result = Ok of 'a | Error of 'b]}
+  *)
+
+  (* TODO: make it possible to reference an existing type automatically.
+     Challenge is deciding how to resolve the type to reference. *)
 
   let ordered_set =
     let open Ordered_set in
@@ -176,10 +239,10 @@ module Parse = struct
     | exp -> [include_spec ~allow_comma:true exp]
 
   and include_spec ~allow_comma = function
-    | [%expr [%e? from_exp] [%e? items_exp] ] ->
+    | [%expr [%e? from_exp] [%e? items_exp] ] as exp ->
         let from = { txt = dotted_name from_exp; loc = from_exp.pexp_loc } in
         let items = ordered_set items_exp |> Ordered_set.map signature_item_pat in
-        Include_from { from; items }
+        Include_from { from; items; loc = exp.pexp_loc }
     | { pexp_desc = Pexp_record (entries, None); _ } as exp ->
         (* TODO: error on extra and duplicate keys *)
         let entries = List.map (fun (k, v) -> k.txt, v) entries in
@@ -245,21 +308,35 @@ let match_signature_item_pat (pat : signature_item_pat) sigi =
   (match pat.kind with Some k -> match_kind k sigi | None -> true)
   && list_equal (fun p s -> match_lident_name p.txt s) pat.names (signature_item_names sigi)
 
-let eval_pat_ordered_set signature s =
+let eval_pat_ordered_set loc signature s =
   let indexed =
     signature |> List.filter is_signature_item_selectable
-    |> List.mapi (fun i x -> i, x)
+    |> List.mapi (fun i x -> i, (x, loc))
   in
   let lookup pat =
-    match List.filter (snd %> match_signature_item_pat pat) indexed with
-    | [item] -> item
+    match List.filter (snd %> fst %> match_signature_item_pat pat) indexed with
+    | [i, (item, _)] -> i, (item, pat.loc)
     | [] -> Location.raise_errorf ~loc:pat.loc "Did not match any signature items"
     | items -> Location.raise_errorf ~loc:pat.loc
         "Ambiguous: matched %d signature items. Hint: use { kind = \"...\" } to disambiguate." (List.length items)
   in
+  let check_psigi item loc =
+    match item.psig_desc with
+    | Psig_type (_, tdcls) ->
+        tdcls |> List.iter (function
+          | { ptype_manifest = None; ptype_name; _ } ->
+              Location.raise_errorf ~loc
+                ("Included type '%s' has no manifest. You should include it " ^^
+                "manually and (optionally) specify a type equality, " ^^
+                "e.g. type t = Foo.t")
+                ptype_name.txt
+          | _ -> ())
+    | _ -> ()
+  in
   Ordered_set.map lookup s
   |> Ordered_set.eval ~eq:(fun (i1, _) (i2, _) -> i1 = i2) indexed
   |> List.map snd
+  |> List.map (fun (item, loc) -> check_psigi item loc; item)
 
 let modify_attributes f sigi =
   let desc = match sigi.psig_desc with
@@ -288,14 +365,14 @@ let rec eval_include_specs sig_infos specs =
   List.concat_map (eval_include_spec sig_infos) specs
 
 and eval_include_spec sig_infos = function
-  | Include_from { from; items } ->
+  | Include_from { from; items; loc } ->
       let[@warning "-8"] p :: ps = Longident.flatten_exn from.txt in
       let signature =
         match infos_get_signature p ps sig_infos with
         | Some s -> s
         | None -> Location.raise_errorf ~loc:from.loc "Unknown signature"
       in
-      eval_pat_ordered_set signature items
+      eval_pat_ordered_set loc signature items
   | Include_group { attributes; items = spec_items } ->
       eval_include_specs sig_infos spec_items
       |> List.map (modify_attributes (fun attr -> attr @ attributes))
@@ -311,5 +388,13 @@ let default_sig_infos = [
 let ppx_include ?(sig_infos = default_sig_infos) ~ctxt exp =
   let loc = Expansion_context.Extension.extension_point_loc ctxt in
   let module B = Ast_builder.Make (struct let loc = loc end) in
-  let sig_items = Parse.include_specs exp |> eval_include_specs sig_infos in
-  B.psig_include (B.include_infos (B.pmty_signature sig_items))
+  try
+    let sig_items = Parse.include_specs exp |> eval_include_specs sig_infos in
+    B.psig_include (B.include_infos (B.pmty_signature sig_items))
+  with e ->
+    (* Note: the docs recommend embedding extension errors as deeply as
+       possible. But that makes the code significantly more complex (everything
+       has to be in Result.t), for no real gain (dev experience is fine as-is) *)
+    match Location.Error.of_exn e with
+    | Some loc_err -> B.psig_extension (Location.Error.to_extension loc_err) []
+    | None -> raise e
