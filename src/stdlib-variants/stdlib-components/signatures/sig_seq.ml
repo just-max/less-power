@@ -8,9 +8,9 @@ module type SafeSeq = sig
   val uncons : 'a t -> ('a * 'a t) option
   val length : 'a t -> int
   val iter : ('a -> unit) -> 'a t -> unit
-  val fold_left : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+  val fold_left : ('acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
   val iteri : (int -> 'a -> unit) -> 'a t -> unit
-  val fold_lefti : ('b -> int -> 'a -> 'b) -> 'b -> 'a t -> 'b
+  val fold_lefti : ('acc -> int -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
   val for_all : ('a -> bool) -> 'a t -> bool
   val exists : ('a -> bool) -> 'a t -> bool
   val find : ('a -> bool) -> 'a t -> 'a option
