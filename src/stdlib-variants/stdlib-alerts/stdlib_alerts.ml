@@ -105,6 +105,8 @@ module type Printexc_alerting = sig
     line_number : int;
     start_char : int;
     end_char : int;
+    end_line : int;
+    end_col : int;
   }
 
   (* only to_string_default can be expected to be pure, not to_string *)

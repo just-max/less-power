@@ -1,1 +1,5 @@
-(documentation)
+(library
+ (name stdlib_variants)
+ (public_name less-power.stdlib-variants)
+
+ (libraries common stdlib_components stdlib_alerts std_overrides))
