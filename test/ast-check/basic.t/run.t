@@ -112,105 +112,112 @@ Check that we cover the basics, as promised in the documentation of Ast_check
   1 | module A__B = struct
              ^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 5, characters 12-16:
   5 | type 'a s = C__D of 'a | D__F
                   ^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 5, characters 25-29:
   5 | type 'a s = C__D of 'a | D__F
                                ^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 7, characters 19-23:
   7 | let this__is__ok = C__D "<-- but this is not"
                          ^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 9, characters 12-26:
   9 | module type Cant__Do__This = sig val this__is__ok__too : int end
                   ^^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 11, characters 8-14:
   11 | let x : A__B.t s = failwith "oh no"
                ^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
-         The use of identifiers of this form is not permitted
-  
-  File "internal_mod.ml", line 11, characters 8-14:
-  11 | let x : A__B.t s = failwith "oh no"
-               ^^^^^^
-  Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 15, characters 12-25:
   15 |     include Stdlib__Array
                    ^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 19, characters 9-22:
   19 |     open Stdlib__Array
                 ^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 23, characters 18-31:
   23 |   module M4 = M3 (Stdlib__Array)
                          ^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 25, characters 32-45:
   25 |   module M5 (A : module type of Stdlib__Array) = struct end
                                        ^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 26, characters 18-31:
   26 |   module M6 = M5 (Stdlib__Array)
                          ^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 30, characters 13-26:
   30 |     let open Stdlib__Array in
                     ^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 33, characters 10-30:
   33 |   let y = Stdlib__Array.append
                  ^^^^^^^^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   
   File "internal_mod.ml", line 36, characters 11-54:
   36 | module _ = Dont__Error.Multiple__Times.Per__Identifier
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Error: This identifier contains a name that starts with an Uppercase letter
-         and contains Two__Underscores in a row
+         and
+         contains Two__Underscores in a row
          The use of identifiers of this form is not permitted
   [1]
 
