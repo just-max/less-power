@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM ocaml/opam:debian-12-ocaml-5.1
+FROM --platform=$BUILDPLATFORM ocaml/opam:debian-12-ocaml-5.3
 
 WORKDIR /home/opam/less-power/
 
