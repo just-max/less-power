@@ -1,6 +1,6 @@
 (** Functionality common to multiple components. *)
 
-(* [@@@alert lp_internal "This module is internal and has an unstable interface!"] *)
+[@@@alert lp_internal "This module is internal and has an unstable interface!"]
 
 module Util = Util
 module Pp_util = Pp_util
