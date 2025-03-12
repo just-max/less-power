@@ -6,7 +6,7 @@ The LP framework was presented at the OCaml Users and Developers Workshop 2023. 
 
 ## Install
 
-The framework is currently fixed to OCaml 5.1.1. Hence, from an OCaml 5.1.1. switch, LP can be installed using opam:
+The framework is currently fixed to OCaml 5.3.0. Hence, from an OCaml 5.3.0. switch, LP can be installed using opam:
 
 ```sh
 opam pin add less-power https://github.com/just-max/less-power.git#main

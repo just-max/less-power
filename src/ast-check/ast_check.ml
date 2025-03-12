@@ -73,6 +73,15 @@ let pp_violation_message : violation Fmt.t = fun fmt vio ->
     (pp_of pp_flow Feature.to_message) vio.feature
     Fmt.(option (cut ++ pp_flow)) vio.message
 
+(* Create a duplicate of pp_violation_message that uses a Format_doc.formatter instead of a Format.formatter. 
+I'm not sure if this is the best way to do this, but it seems to work. *)
+let pp_violation_message_doc = fun fmt vio ->
+  let buffer = Buffer.create 256 in
+  let formatter = Format.formatter_of_buffer buffer in
+  pp_violation_message formatter vio;
+  Format.pp_print_flush formatter ();
+  Ocaml_common.Format_doc.pp_print_text fmt (Buffer.contents buffer)
+    
 let violation location ?message feature = { location ; message; feature }
 let violation1 location ?message feature = [violation location ?message feature]
 
@@ -281,7 +290,7 @@ let pp_violation ppf vio =
     loc_ghost = vio.location.Ppxlib.Location.loc_ghost;
   }
   in
-  let report = errorf ~loc "%a" pp_violation_message vio in
+  let report = errorf ~loc "%a" pp_violation_message_doc vio in
   print_report ppf report
 
 (* TODO: drop file_violations, path_violations, and pp_violation,
