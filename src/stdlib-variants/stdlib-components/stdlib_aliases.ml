@@ -25,6 +25,7 @@ module SafeAliases = struct
   (* module Digest         = Digest *)
   (* module Domain         = Domain *)
   (* module Effect         = Effect *)
+  (* module Dynarray       = Dynarray *)
   module Either         = Either
   (* module Ephemeron      = Ephemeron *)
   (* module Filename       = Filename *)

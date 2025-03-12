@@ -14,7 +14,7 @@
    "\| and at scale.
  )
  (depends
-  (ocaml (= 5.1.1))
+  (ocaml (= 5.3.0))
   (xmlm (and (>= 1.4) (< 1.5)))
   (fileutils (and (>= 0.6) (< 0.7)))
   (qcheck-core (and (>= 0.21) (< 0.22)))
@@ -22,8 +22,8 @@
   (junit (and (>= 2.0) (< 2.1)))
   (mtime (and (>= 2.0) (< 2.1)))
   (fmt (and (>= 0.9) (< 0.10)))
-  (ppxlib (and (>= 0.30) (< 0.31)))
-  (ocaml-compiler-libs (and (>= v0.12) (< v0.13)))
+  (ppxlib (and (>= 0.36) (< 0.37)))
+  (ocaml-compiler-libs (and (>= v0.17) (< v0.18)))
   (cmdliner (and (>= 1.2) (< 1.3)))
  )
 )
