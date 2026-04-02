@@ -12,13 +12,14 @@
     - [while] loops
     - [for] loops
     - declaring records with mutable entries
-    - reference cells and updates ([ref], [[!]], [[:=]], [incr], [decr])
-    - atomic record fields, atomic location extensions, and the [Atomic] module
+    - atomic record fields and atomic location extensions
     - [external] declarations
     - internal dune modules ([Package__Module])
 
     [external] declarations and internal dune modules are forbidden, as they can
     be used to circumvent restrictions in the [Stdlib] replacement.
+    Reference operations ([ref], [!], [:=], [incr], [decr]) and the [Atomic]
+    module are restricted via the [Stdlib] mock rather than at the syntax level.
     The sequence operator is not forbidden as there would be no point,
     [a; b] can be trivially replaced by [let _ = a in b].
 
@@ -35,7 +36,7 @@ module Feature :
     type t =
       Array | Mutable_member | Object | Loop
       | Primitive | Internal_name | Alert_control | Tail_mod_cons
-      | Imperative_ref | Atomic
+      | Atomic
     module Set : Set.S with type elt = t
 
     val to_identifier : t -> string

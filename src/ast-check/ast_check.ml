@@ -15,19 +15,16 @@ module Messages = struct
   let tail_mod_cons =
     "This is a use of the 'Tail Modulo Constructor' \
      program transformation, which is not permitted"
-  let imperative_ref =
-    "This is a use of a reference cell or update (ref, !, :=, incr, decr), \
-     which is not permitted"
   let atomic =
-    "This is a use of atomic record fields, atomic locations, or the Atomic \
-     module, which is not permitted"
+    "This is a use of atomic record fields or atomic locations, \
+     which is not permitted"
 end
 
 module Feature = struct
   type t =
     Array | Mutable_member | Object | Loop
     | Primitive | Internal_name | Alert_control | Tail_mod_cons
-    | Imperative_ref | Atomic
+    | Atomic
 
   let identifiers = [
     Array, "array";
@@ -38,7 +35,6 @@ module Feature = struct
     Internal_name, "internal_name";
     Alert_control, "alert_control";
     Tail_mod_cons, "tail_mod_cons";
-    Imperative_ref, "imperative_ref";
     Atomic, "atomic";
   ]
 
@@ -53,7 +49,7 @@ module Feature = struct
     Set.of_list
       [ Array; Mutable_member; Object; Loop;
         Primitive; Internal_name; Alert_control; Tail_mod_cons;
-        Imperative_ref; Atomic; ]
+        Atomic; ]
 
   let minimum = Set.of_list [ Primitive; Internal_name; Alert_control ]
   let default = Set.remove Tail_mod_cons all
@@ -69,7 +65,6 @@ module Feature = struct
     | Internal_name -> internal_name
     | Alert_control -> alert_control
     | Tail_mod_cons -> tail_mod_cons
-    | Imperative_ref -> imperative_ref
     | Atomic -> atomic
 end
 
@@ -156,15 +151,6 @@ module Patterns = struct
 
 end
 
-let rec apply_head (e : Ppxlib.expression) =
-  let open Ppxlib.Ast in
-  match e.pexp_desc with
-  | Pexp_apply (fn, _) -> apply_head fn
-  | Pexp_constraint (e', _) -> apply_head e'
-  | Pexp_coerce (e', _, _) -> apply_head e'
-  | Pexp_newtype (_, e') -> apply_head e'
-  | _ -> e
-
 (** Whether an extension name denotes [%atomic.loc] / [%ocaml.atomic.loc]. *)
 let is_atomic_loc_extension name =
   name = "atomic.loc" || name = "ocaml.atomic.loc"
@@ -178,66 +164,10 @@ let has_atomic_attribute attrs =
        n = "atomic" || n = "ocaml.atomic")
     attrs
 
-let rec longident_has_atomic_access (lid : Ppxlib.longident) =
-  let open Ppxlib.Longident in
-  match lid with
-  | Ldot (Lident "Stdlib", "Atomic") -> true
-  | Ldot (p, _) -> longident_has_atomic_access p
-  | Lapply (p, _) -> longident_has_atomic_access p
-  | Lident s -> s = "Atomic"
-
-let longident_is_imperative_ref (lid : Ppxlib.longident) =
-  let imperative = [ "ref"; ":="; "!"; "incr"; "decr" ] in
-  let open Ppxlib.Longident in
-  match lid with
-  | Lident s -> List.mem s imperative
-  | Ldot (Lident l, s) when l = "Stdlib" || l = "Pervasives" ->
-      List.mem s imperative
-  | _ -> false
-
-(** Imperative ref/update on [Pexp_apply] (head after peeling applies/wrappers), or a bare
-    [Pexp_ident] (e.g. [List.map ref xs], [let deref = (!)]). *)
-let rec expression_has_imperative_ref (e : Ppxlib.expression) =
-  let open Ppxlib.Ast in
-  match e.pexp_desc with
-  | Pexp_apply _ -> (
-      match (apply_head e).pexp_desc with
-      | Pexp_ident { txt; _ } -> longident_is_imperative_ref txt
-      | _ -> false)
-  | Pexp_ident { txt; _ } -> longident_is_imperative_ref txt
-  | Pexp_constraint (e', _)
-  | Pexp_coerce (e', _, _)
-  | Pexp_newtype (_, e') ->
-      expression_has_imperative_ref e'
-  | _ -> false
-
 let expression_has_atomic_loc_extension (e : Ppxlib.expression) =
   let open Ppxlib.Ast in
   match e.pexp_desc with
   | Pexp_extension ({ txt; _ }, _) -> is_atomic_loc_extension txt
-  | _ -> false
-
-let is_atomic_module_literal (txt : Ppxlib.Longident.t) =
-  let open Ppxlib.Longident in
-  match txt with
-  | Lident "Atomic" -> true
-  | Ldot (Lident "Stdlib", "Atomic") -> true
-  | _ -> false
-
-(** Calls: outer [Pexp_apply] with head [Atomic]/[Stdlib.Atomic] after peeling wrappers;
-    first-class [Atomic] module as a bare ident or under type ascribe/coerce/newtype. *)
-let rec expression_uses_atomic_module (e : Ppxlib.expression) =
-  let open Ppxlib.Ast in
-  match e.pexp_desc with
-  | Pexp_apply _ -> (
-      match (apply_head e).pexp_desc with
-      | Pexp_ident { txt; _ } -> longident_has_atomic_access txt
-      | _ -> false)
-  | Pexp_ident { txt; _ } -> is_atomic_module_literal txt
-  | Pexp_constraint (e', _)
-  | Pexp_coerce (e', _, _)
-  | Pexp_newtype (_, e') ->
-      expression_uses_atomic_module e'
   | _ -> false
 
 (** Reject names that look like they could be module names when they contain the
@@ -277,9 +207,6 @@ let iter_violations context =
     Ppxlib.Ast_pattern.parse (pat ()) location x Fun.id
     |> iter_violations context
   in
-  (* Suppress imperative-ref report on [fn] while visiting [Pexp_apply (fn, _)] when the
-     apply is already reported (avoids duplicate [ref] vs [ref 0]). *)
-  let imperative_apply_fn_suppress = ref None in
   object
     inherit [Ppxlib.Location.t] Ppxlib.Ast_traverse.map_with_context as super
 
@@ -312,29 +239,8 @@ let iter_violations context =
         if l.Ppxlib.Location.loc_ghost then ctx_loc else l
       in
       violation_pat Patterns.exp_violation loc e;
-      let skip_imperative =
-        match !imperative_apply_fn_suppress with
-        | Some sup -> Ppxlib.Location.compare e.pexp_loc sup = 0
-        | None -> false
-      in
-      if not skip_imperative then
-        violation_when expression_has_imperative_ref Imperative_ref loc e;
       violation_when expression_has_atomic_loc_extension Atomic loc e;
-      violation_when expression_uses_atomic_module Atomic loc e;
-      let suppress =
-        match e.pexp_desc with
-        | Pexp_apply (fn, _) -> (
-            let head = apply_head fn in
-            match head.pexp_desc with
-            | Pexp_ident { txt; _ } when longident_is_imperative_ref txt ->
-                Some head.pexp_loc
-            | _ -> None)
-        | _ -> None
-      in
-      Option.iter (fun l -> imperative_apply_fn_suppress := Some l) suppress;
-      let e' = super#expression ctx_loc e in
-      Option.iter (fun _ -> imperative_apply_fn_suppress := None) suppress;
-      e'
+      super#expression ctx_loc e
 
     method! mutable_flag =
       iter super#mutable_flag
