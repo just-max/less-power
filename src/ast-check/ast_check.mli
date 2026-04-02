@@ -12,8 +12,6 @@
     - [while] loops
     - [for] loops
     - declaring records with mutable entries
-    - reference cells and updates ([ref], [[!]], [[:=]], [incr], [decr])
-    - atomic record fields, atomic location extensions, and the [Atomic] module
     - [external] declarations
     - internal dune modules ([Package__Module])
 
@@ -35,7 +33,6 @@ module Feature :
     type t =
       Array | Mutable_member | Object | Loop
       | Primitive | Internal_name | Alert_control | Tail_mod_cons
-      | Imperative_ref | Atomic
     module Set : Set.S with type elt = t
 
     val to_identifier : t -> string

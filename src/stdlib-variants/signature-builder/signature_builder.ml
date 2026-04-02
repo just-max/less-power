@@ -234,8 +234,7 @@ module Parse = struct
     impl exp0
 
   let rec include_specs = function
-    | { pexp_desc = Pexp_tuple specs; _ } ->
-        List.map (include_spec ~allow_comma:false) specs
+    | { pexp_desc = Pexp_tuple specs; _ } -> List.map (include_spec ~allow_comma:false) specs
     | [%expr () ] -> []
     | exp -> [include_spec ~allow_comma:true exp]
 
