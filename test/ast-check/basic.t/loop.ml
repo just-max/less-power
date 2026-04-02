@@ -3,7 +3,9 @@ let rec my_fork_bomb () =
     my_fork_bomb (); my_fork_bomb ()
   done
 
-let count_up_to n =
+let my_prime_test n =
+  let is_prime = ref true in
   for i = 2 to n do
-    ()
-  done
+    if n mod i = 0 then is_prime := true
+  done ;
+  !is_prime
