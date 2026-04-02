@@ -62,10 +62,10 @@ Check that we cover the basics, as promised in the documentation of Ast_check
   4 |   done
   Error: This is a use of a loop, which is not permitted
   
-  File "loop.ml", lines 7-9, characters 2-6:
-  7 | ..for i = 2 to n do
-  8 |     ()
-  9 |   done
+  File "loop.ml", lines 8-10, characters 2-6:
+   8 | ..for i = 2 to n do
+   9 |     if n mod i = 0 then is_prime := true
+  10 |   done..
   Error: This is a use of a loop, which is not permitted
   [1]
 

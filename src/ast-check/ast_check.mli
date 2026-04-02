@@ -18,8 +18,6 @@
 
     [external] declarations and internal dune modules are forbidden, as they can
     be used to circumvent restrictions in the [Stdlib] replacement.
-    Reference operations ([ref], [!], [:=], [incr], [decr]) and the [Atomic]
-    module are restricted via the [Stdlib] mock rather than at the syntax level.
     The sequence operator is not forbidden as there would be no point,
     [a; b] can be trivially replaced by [let _ = a in b].
 
