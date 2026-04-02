@@ -15,10 +15,10 @@ jobs:
       - name: Checkout tree
         uses: actions/checkout@v4
 
-      - name: Set-up OCaml 5
+      - name: Set-up OCaml 5.4.1
         uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: 5
+          ocaml-compiler: 5.4.1
           # disable cache, otherwise generated documentation is missing files
           dune-cache: false
 
