@@ -240,7 +240,7 @@ let iter_violations context =
       in
       violation_pat Patterns.exp_violation loc e;
       violation_when expression_has_atomic_loc_extension Atomic loc e;
-      super#expression ctx_loc e
+      super#expression loc e
 
     method! mutable_flag =
       iter super#mutable_flag
