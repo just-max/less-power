@@ -15,12 +15,19 @@ module Messages = struct
   let tail_mod_cons =
     "This is a use of the 'Tail Modulo Constructor' \
      program transformation, which is not permitted"
+  let imperative_ref =
+    "This is a use of a reference cell or update (ref, !, :=, incr, decr), \
+     which is not permitted"
+  let atomic =
+    "This is a use of atomic record fields, atomic locations, or the Atomic \
+     module, which is not permitted"
 end
 
 module Feature = struct
   type t =
     Array | Mutable_member | Object | Loop
     | Primitive | Internal_name | Alert_control | Tail_mod_cons
+    | Imperative_ref | Atomic
 
   let identifiers = [
     Array, "array";
@@ -31,6 +38,8 @@ module Feature = struct
     Internal_name, "internal_name";
     Alert_control, "alert_control";
     Tail_mod_cons, "tail_mod_cons";
+    Imperative_ref, "imperative_ref";
+    Atomic, "atomic";
   ]
 
   let to_identifier feature = List.assoc feature identifiers
@@ -43,7 +52,8 @@ module Feature = struct
   let all =
     Set.of_list
       [ Array; Mutable_member; Object; Loop;
-        Primitive; Internal_name; Alert_control; Tail_mod_cons ]
+        Primitive; Internal_name; Alert_control; Tail_mod_cons;
+        Imperative_ref; Atomic; ]
 
   let minimum = Set.of_list [ Primitive; Internal_name; Alert_control ]
   let default = Set.remove Tail_mod_cons all
@@ -59,6 +69,8 @@ module Feature = struct
     | Internal_name -> internal_name
     | Alert_control -> alert_control
     | Tail_mod_cons -> tail_mod_cons
+    | Imperative_ref -> imperative_ref
+    | Atomic -> atomic
 end
 
 type violation = {
@@ -144,6 +156,76 @@ module Patterns = struct
 
 end
 
+let rec apply_head (e : Ppxlib.expression) =
+  let open Ppxlib.Ast in
+  match e.pexp_desc with
+  | Pexp_apply (fn, _) -> apply_head fn
+  | _ -> e
+
+(** Whether an extension name denotes [%atomic.loc] / [%ocaml.atomic.loc]. *)
+let is_atomic_loc_extension name =
+  name = "atomic.loc" || name = "ocaml.atomic.loc"
+
+(** Whether a field or item carries the [@atomic] / [@ocaml.atomic] attribute. *)
+let has_atomic_attribute attrs =
+  let open Ppxlib.Ast in
+  List.exists
+    (fun a ->
+       let n = a.attr_name.txt in
+       n = "atomic" || n = "ocaml.atomic")
+    attrs
+
+let rec longident_has_atomic_access (lid : Ppxlib.longident) =
+  let open Ppxlib.Longident in
+  match lid with
+  | Ldot (Lident "Stdlib", "Atomic") -> true
+  | Ldot (p, _) -> longident_has_atomic_access p
+  | Lapply (p, _) -> longident_has_atomic_access p
+  | Lident s -> s = "Atomic"
+
+let longident_is_imperative_ref (lid : Ppxlib.longident) =
+  let imperative = [ "ref"; ":="; "!"; "incr"; "decr" ] in
+  let open Ppxlib.Longident in
+  match lid with
+  | Lident s -> List.mem s imperative
+  | Ldot (Lident l, s) when l = "Stdlib" || l = "Pervasives" ->
+      List.mem s imperative
+  | _ -> false
+
+(** Report only on [Pexp_apply] (not the inner function ident) to avoid duplicates. *)
+let expression_has_imperative_ref (e : Ppxlib.expression) =
+  let open Ppxlib.Ast in
+  match e.pexp_desc with
+  | Pexp_apply _ -> (
+      match (apply_head e).pexp_desc with
+      | Pexp_ident { txt; _ } -> longident_is_imperative_ref txt
+      | _ -> false)
+  | _ -> false
+
+let expression_has_atomic_loc_extension (e : Ppxlib.expression) =
+  let open Ppxlib.Ast in
+  match e.pexp_desc with
+  | Pexp_extension ({ txt; _ }, _) -> is_atomic_loc_extension txt
+  | _ -> false
+
+let is_atomic_module_literal (txt : Ppxlib.Longident.t) =
+  let open Ppxlib.Longident in
+  match txt with
+  | Lident "Atomic" -> true
+  | Ldot (Lident "Stdlib", "Atomic") -> true
+  | _ -> false
+
+(** Calls: outer [Pexp_apply]; first-class [Atomic] / [Stdlib.Atomic] only as a bare ident. *)
+let expression_uses_atomic_module (e : Ppxlib.expression) =
+  let open Ppxlib.Ast in
+  match e.pexp_desc with
+  | Pexp_apply _ -> (
+      match (apply_head e).pexp_desc with
+      | Pexp_ident { txt; _ } -> longident_has_atomic_access txt
+      | _ -> false)
+  | Pexp_ident { txt; _ } -> is_atomic_module_literal txt
+  | _ -> false
+
 (** Reject names that look like they could be module names when they contain the
     substring ["__"]. Only names that start with an ASCII lowercase character
     are not considered modules. This rejects some harmless names like
@@ -193,7 +275,10 @@ let iter_violations context =
     (* mutable_flag may occur in these three places *)
     method! class_type_field _ ctf = super#class_type_field ctf.pctf_loc ctf
     method! class_field _ cf = super#class_field cf.pcf_loc cf
-    method! label_declaration _ ld = super#label_declaration ld.pld_loc ld
+    method! label_declaration k ld =
+      if has_atomic_attribute ld.pld_attributes then
+        violation1 ld.pld_loc Atomic |> iter_violations context;
+      super#label_declaration k ld
 
     method! string =
       iter super#string @@ violation_when is_internal_name Internal_name
@@ -205,8 +290,12 @@ let iter_violations context =
       @@ violation_when ident_contains_internal_name Internal_name
 
     method! expression =
-      iter ~loc:exp_loc super#expression
-      @@ violation_pat Patterns.exp_violation
+      iter ~loc:exp_loc super#expression (fun loc e ->
+        violation_pat Patterns.exp_violation loc e;
+        violation_when expression_has_imperative_ref Imperative_ref loc e;
+        violation_when expression_has_atomic_loc_extension Atomic loc e;
+        violation_when expression_uses_atomic_module Atomic loc e;
+      )
 
     method! mutable_flag =
       iter super#mutable_flag
