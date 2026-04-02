@@ -70,9 +70,9 @@ Check that we cover the basics, as promised in the documentation of Ast_check
   [1]
 
   $ lp-ast-check mut_record.ml
-  File "mut_record.ml", line 1, characters 0-40:
+  File "mut_record.ml", line 1, characters 17-38:
   1 | type 'a cell = { mutable contents : 'a }
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       ^^^^^^^^^^^^^^^^^^^^^
   Error: This is a use of a mutable field or value, which is not permitted
   
   File "mut_record.ml", line 5, characters 34-70:
@@ -82,9 +82,9 @@ Check that we cover the basics, as promised in the documentation of Ast_check
   [1]
 
   $ lp-ast-check mut_record.ml
-  File "mut_record.ml", line 1, characters 0-40:
+  File "mut_record.ml", line 1, characters 17-38:
   1 | type 'a cell = { mutable contents : 'a }
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       ^^^^^^^^^^^^^^^^^^^^^
   Error: This is a use of a mutable field or value, which is not permitted
   
   File "mut_record.ml", line 5, characters 34-70:
@@ -283,6 +283,27 @@ Check that we cover the basics, as promised in the documentation of Ast_check
   Error: This is a use of a reference cell or update (ref, !, :=, incr, decr),
          which
          is not permitted
+  
+  File "imperative_ref.ml", line 7, characters 8-32:
+  7 | let _ = (ref : int -> int ref) 0
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  Error: This is a use of a reference cell or update (ref, !, :=, incr, decr),
+         which
+         is not permitted
+  
+  File "imperative_ref.ml", line 7, characters 8-30:
+  7 | let _ = (ref : int -> int ref) 0
+              ^^^^^^^^^^^^^^^^^^^^^^
+  Error: This is a use of a reference cell or update (ref, !, :=, incr, decr),
+         which
+         is not permitted
+  
+  File "imperative_ref.ml", line 8, characters 17-20:
+  8 | let _ = List.map ref []
+                       ^^^
+  Error: This is a use of a reference cell or update (ref, !, :=, incr, decr),
+         which
+         is not permitted
   [1]
 
   $ lp-ast-check atomic.ml
@@ -293,14 +314,21 @@ Check that we cover the basics, as promised in the documentation of Ast_check
          Atomic
          module, which is not permitted
   
-  File "atomic.ml", line 1, characters 0-38:
+  File "atomic.ml", line 1, characters 11-36:
   1 | type r = { mutable n : int [@atomic] }
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
   Error: This is a use of a mutable field or value, which is not permitted
   
   File "atomic.ml", line 2, characters 8-21:
   2 | let _ = Atomic.make 0
               ^^^^^^^^^^^^^
+  Error: This is a use of atomic record fields, atomic locations, or the
+         Atomic
+         module, which is not permitted
+  
+  File "atomic.ml", line 3, characters 8-45:
+  3 | let _ = (Atomic.make : int -> int Atomic.t) 0
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Error: This is a use of atomic record fields, atomic locations, or the
          Atomic
          module, which is not permitted
