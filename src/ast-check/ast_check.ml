@@ -160,6 +160,9 @@ let rec apply_head (e : Ppxlib.expression) =
   let open Ppxlib.Ast in
   match e.pexp_desc with
   | Pexp_apply (fn, _) -> apply_head fn
+  | Pexp_constraint (e', _) -> apply_head e'
+  | Pexp_coerce (e', _, _) -> apply_head e'
+  | Pexp_newtype (_, e') -> apply_head e'
   | _ -> e
 
 (** Whether an extension name denotes [%atomic.loc] / [%ocaml.atomic.loc]. *)
@@ -192,14 +195,20 @@ let longident_is_imperative_ref (lid : Ppxlib.longident) =
       List.mem s imperative
   | _ -> false
 
-(** Report only on [Pexp_apply] (not the inner function ident) to avoid duplicates. *)
-let expression_has_imperative_ref (e : Ppxlib.expression) =
+(** Imperative ref/update on [Pexp_apply] (head after peeling applies/wrappers), or a bare
+    [Pexp_ident] (e.g. [List.map ref xs], [let deref = (!)]). *)
+let rec expression_has_imperative_ref (e : Ppxlib.expression) =
   let open Ppxlib.Ast in
   match e.pexp_desc with
   | Pexp_apply _ -> (
       match (apply_head e).pexp_desc with
       | Pexp_ident { txt; _ } -> longident_is_imperative_ref txt
       | _ -> false)
+  | Pexp_ident { txt; _ } -> longident_is_imperative_ref txt
+  | Pexp_constraint (e', _)
+  | Pexp_coerce (e', _, _)
+  | Pexp_newtype (_, e') ->
+      expression_has_imperative_ref e'
   | _ -> false
 
 let expression_has_atomic_loc_extension (e : Ppxlib.expression) =
@@ -215,8 +224,9 @@ let is_atomic_module_literal (txt : Ppxlib.Longident.t) =
   | Ldot (Lident "Stdlib", "Atomic") -> true
   | _ -> false
 
-(** Calls: outer [Pexp_apply]; first-class [Atomic] / [Stdlib.Atomic] only as a bare ident. *)
-let expression_uses_atomic_module (e : Ppxlib.expression) =
+(** Calls: outer [Pexp_apply] with head [Atomic]/[Stdlib.Atomic] after peeling wrappers;
+    first-class [Atomic] module as a bare ident or under type ascribe/coerce/newtype. *)
+let rec expression_uses_atomic_module (e : Ppxlib.expression) =
   let open Ppxlib.Ast in
   match e.pexp_desc with
   | Pexp_apply _ -> (
@@ -224,6 +234,10 @@ let expression_uses_atomic_module (e : Ppxlib.expression) =
       | Pexp_ident { txt; _ } -> longident_has_atomic_access txt
       | _ -> false)
   | Pexp_ident { txt; _ } -> is_atomic_module_literal txt
+  | Pexp_constraint (e', _)
+  | Pexp_coerce (e', _, _)
+  | Pexp_newtype (_, e') ->
+      expression_uses_atomic_module e'
   | _ -> false
 
 (** Reject names that look like they could be module names when they contain the
@@ -263,6 +277,9 @@ let iter_violations context =
     Ppxlib.Ast_pattern.parse (pat ()) location x Fun.id
     |> iter_violations context
   in
+  (* Suppress imperative-ref report on [fn] while visiting [Pexp_apply (fn, _)] when the
+     apply is already reported (avoids duplicate [ref] vs [ref 0]). *)
+  let imperative_apply_fn_suppress = ref None in
   object
     inherit [Ppxlib.Location.t] Ppxlib.Ast_traverse.map_with_context as super
 
@@ -275,10 +292,10 @@ let iter_violations context =
     (* mutable_flag may occur in these three places *)
     method! class_type_field _ ctf = super#class_type_field ctf.pctf_loc ctf
     method! class_field _ cf = super#class_field cf.pcf_loc cf
-    method! label_declaration k ld =
+    method! label_declaration _ ld =
       if has_atomic_attribute ld.pld_attributes then
         violation1 ld.pld_loc Atomic |> iter_violations context;
-      super#label_declaration k ld
+      super#label_declaration ld.pld_loc ld
 
     method! string =
       iter super#string @@ violation_when is_internal_name Internal_name
@@ -289,13 +306,35 @@ let iter_violations context =
       iter (fun _ li -> li)
       @@ violation_when ident_contains_internal_name Internal_name
 
-    method! expression =
-      iter ~loc:exp_loc super#expression (fun loc e ->
-        violation_pat Patterns.exp_violation loc e;
+    method! expression ctx_loc e =
+      let loc =
+        let l = e.pexp_loc in
+        if l.Ppxlib.Location.loc_ghost then ctx_loc else l
+      in
+      violation_pat Patterns.exp_violation loc e;
+      let skip_imperative =
+        match !imperative_apply_fn_suppress with
+        | Some sup -> Ppxlib.Location.compare e.pexp_loc sup = 0
+        | None -> false
+      in
+      if not skip_imperative then
         violation_when expression_has_imperative_ref Imperative_ref loc e;
-        violation_when expression_has_atomic_loc_extension Atomic loc e;
-        violation_when expression_uses_atomic_module Atomic loc e;
-      )
+      violation_when expression_has_atomic_loc_extension Atomic loc e;
+      violation_when expression_uses_atomic_module Atomic loc e;
+      let suppress =
+        match e.pexp_desc with
+        | Pexp_apply (fn, _) -> (
+            let head = apply_head fn in
+            match head.pexp_desc with
+            | Pexp_ident { txt; _ } when longident_is_imperative_ref txt ->
+                Some head.pexp_loc
+            | _ -> None)
+        | _ -> None
+      in
+      Option.iter (fun l -> imperative_apply_fn_suppress := Some l) suppress;
+      let e' = super#expression ctx_loc e in
+      Option.iter (fun _ -> imperative_apply_fn_suppress := None) suppress;
+      e'
 
     method! mutable_flag =
       iter super#mutable_flag
