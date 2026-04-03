@@ -386,7 +386,7 @@ module type Stdlib_alerting = sig
 
   (** {2 Completely safe modules} *)
 
-  [%%include stdlib.stdlib (Bool, Complex, Either, Fun, Int, Int32, Int64, Lazy, Map, Nativeint, Option, Result, Set, Unit)]
+  [%%include stdlib.stdlib (Bool, Complex, Either, Fun, Int, Int32, Int64, Lazy, Map, Nativeint, Option, Pair, Result, Set, Unit)]
   (* TODO: is Lazy *really* safe? *)
 
   (** {2 Partially safe modules} *)
@@ -418,14 +418,16 @@ module type Stdlib_alerting = sig
 
   (** {2 Imperative programming modules} *)
 
+  (* Iarray is immutable, but we still restrict it: indexed access encourages
+     imperative thinking, and we want students to use lists instead. *)
   [%%include {
     attributes = __ [@alert impure "Arrays are not permitted"];
-    items = stdlib.stdlib (Array, ArrayLabels, Bigarray)
+    items = stdlib.stdlib (Array, ArrayLabels, Bigarray, Iarray)
   }]
 
   [%%include {
     attributes = __ [@alert impure "This imperative programming module is not permitted"];
-    items = stdlib.stdlib (Buffer, Bytes, BytesLabels, Format, Lexing, Parsing, Queue, Random, Stack)
+    items = stdlib.stdlib (Atomic, Buffer, Bytes, BytesLabels, Dynarray, Format, Lexing, Parsing, Pqueue, Queue, Random, Stack)
   }]
 
   [%%include {
@@ -438,7 +440,7 @@ module type Stdlib_alerting = sig
 
   [%%include {
     attributes = __ [@alert unsafe "This module is not permitted"];
-    items = stdlib.stdlib (Arg, Atomic, Callback, Condition, Domain, Effect, Ephemeron, Gc, Marshal, Mutex, Obj, Oo, Sys, Weak)
+    items = stdlib.stdlib (Arg, Callback, Condition, Domain, Effect, Ephemeron, Gc, Marshal, Mutex, Obj, Oo, Repr, Sys, Weak)
   }]
 
 end
