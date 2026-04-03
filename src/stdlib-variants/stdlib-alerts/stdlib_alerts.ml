@@ -440,7 +440,7 @@ module type Stdlib_alerting = sig
 
   [%%include {
     attributes = __ [@alert unsafe "This module is not permitted"];
-    items = stdlib.stdlib (Arg, Callback, Condition, Domain, Effect, Ephemeron, Gc, Marshal, Mutex, Obj, Oo, Repr, Sys, Weak)
+    items = stdlib.stdlib (Arg, Callback, Condition, Domain, Effect, Ephemeron, Gc, Marshal, Mutex, Obj, Oo, Repr, Semaphore, Sys, Type, Weak)
   }]
 
 end
