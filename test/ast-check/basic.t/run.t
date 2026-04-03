@@ -240,3 +240,25 @@ Check that we cover the basics, as promised in the documentation of Ast_check
   Error: This annotation changes which alerts are enabled, which is not
          permitted
   [1]
+
+  $ lp-ast-check atomic.ml
+  File "atomic.ml", line 1, characters 11-36:
+  1 | type r = { mutable n : int [@atomic] }
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  Error: This is a use of atomic record fields or atomic locations, which is
+         not
+         permitted
+  
+  File "atomic.ml", line 1, characters 11-36:
+  1 | type r = { mutable n : int [@atomic] }
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  Error: This is a use of a mutable field or value, which is not permitted
+  
+  File "atomic.ml", line 2, characters 23-40:
+  2 | let _ = fun (r : r) -> [%atomic.loc r.n]
+                             ^^^^^^^^^^^^^^^^^
+  Error: This is a use of atomic record fields or atomic locations, which is
+         not
+         permitted
+  [1]
+

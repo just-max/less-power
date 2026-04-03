@@ -44,6 +44,7 @@
     %{lib:stdlib:condition.mli}
     %{lib:stdlib:digest.mli}
     %{lib:stdlib:domain.mli}
+    %{lib:stdlib:dynarray.mli}
     %{lib:stdlib:effect.mli}
     %{lib:stdlib:either.mli}
     %{lib:stdlib:ephemeron.mli}
@@ -53,6 +54,7 @@
     %{lib:stdlib:fun.mli}
     %{lib:stdlib:gc.mli}
     %{lib:stdlib:hashtbl.mli}
+    %{lib:stdlib:iarray.mli}
     %{lib:stdlib:in_channel.mli}
     %{lib:stdlib:int32.mli}
     %{lib:stdlib:int64.mli}
@@ -70,11 +72,14 @@
     %{lib:stdlib:oo.mli}
     %{lib:stdlib:option.mli}
     %{lib:stdlib:out_channel.mli}
+    %{lib:stdlib:pair.mli}
     %{lib:stdlib:parsing.mli}
     %{lib:stdlib:printexc.mli}
     %{lib:stdlib:printf.mli}
+    %{lib:stdlib:pqueue.mli}
     %{lib:stdlib:queue.mli}
     %{lib:stdlib:random.mli}
+    %{lib:stdlib:repr.mli}
     %{lib:stdlib:result.mli}
     %{lib:stdlib:scanf.mli}
     %{lib:stdlib:semaphore.mli}
